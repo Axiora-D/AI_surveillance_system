@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - AI Surveillance System</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: #0a0e1a;
+            color: #00ff88;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        
+        /* Animated background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+            z-index: -2;
+        }
+        
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+        
+        .header {
+            background: rgba(15, 25, 45, 0.95);
+            border-bottom: 2px solid #00ff88;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(15px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: #00ff88;
+            text-shadow: 0 0 20px #00ff88;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        /* Filter Controls */
+        .filter-panel {
+            background: rgba(15, 25, 45, 0.95);
+            border: 1px solid #00ff88;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(15px);
+        }
+        
+        .filter-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #00ff88;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #00ff88;
+        }
+        
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .filter-label {
+            font-size: 12px;
+            color: #9ca3af;
+            font-weight: 500;
+        }
+        
+        .filter-input, .filter-select {
+            background: rgba(0, 20, 40, 0.8);
+            border: 1px solid #00ff88;
+            border-radius: 4px;
+            padding: 8px 12px;
+            color: #00ff88;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .filter-input:focus, .filter-select:focus {
+            outline: none;
+            border-color: #00ffaa;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+            background: rgba(0, 30, 50, 0.9);
+        }
+        
+        .filter-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 10px;
+        }
+        
+        .filter-btn {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .filter-btn:hover {
+            background: rgba(0, 255, 136, 0.2);
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+        }
+        
+        .filter-btn.active {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: #0a0e1a;
+        }
+        
+        .filter-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .back-button {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .back-button:hover {
+            background: rgba(0, 255, 136, 0.2);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+            transform: translateY(-2px);
+        }
+        
+        .main-container {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .page-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px #00ff88;
+            letter-spacing: 2px;
+        }
+        
+        .page-subtitle {
+            font-size: 16px;
+            color: #9ca3af;
+            margin-bottom: 40px;
+        }
+        
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .analytics-card {
+            background: rgba(15, 25, 45, 0.95);
+            border: 2px solid #00ff88;
+            border-radius: 12px;
+            padding: 25px;
+            backdrop-filter: blur(15px);
+            box-shadow: 
+                0 0 30px rgba(0, 255, 136, 0.3),
+                inset 0 0 20px rgba(0, 255, 136, 0.1);
+            animation: cardGlow 3s ease-in-out infinite alternate;
+        }
+        
+        @keyframes cardGlow {
+            0% { box-shadow: 0 0 30px rgba(0, 255, 136, 0.3), inset 0 0 20px rgba(0, 255, 136, 0.1); }
+            100% { box-shadow: 0 0 50px rgba(0, 255, 136, 0.5), inset 0 0 30px rgba(0, 255, 136, 0.15); }
+        }
+        
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #00ff88;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-value {
+            font-size: 48px;
+            font-weight: 700;
+            color: #00ff88;
+            text-shadow: 0 0 20px #00ff88;
+            margin-bottom: 10px;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .chart-container {
+            height: 250px;
+            background: rgba(0, 20, 40, 0.8);
+            border: 1px solid #00ff88;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            position: relative;
+            overflow-y: auto;
+        }
+        
+        .chart-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .detection-list {
+            max-height: 250px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .detection-item {
+            background: rgba(0, 20, 40, 0.8);
+            border: 1px solid #00ff88;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .detection-item:hover {
+            background: rgba(0, 30, 50, 0.9);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+        }
+        
+        .detection-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .detection-class {
+            font-size: 16px;
+            font-weight: 700;
+            color: #00ff88;
+            text-transform: uppercase;
+        }
+        
+        .detection-confidence {
+            font-size: 14px;
+            color: #ffff00;
+            font-weight: 700;
+        }
+        
+        .detection-time {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-bottom: 5px;
+        }
+        
+        .detection-bbox {
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .class-breakdown {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .class-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(0, 20, 40, 0.8);
+            border: 1px solid #00ff88;
+            border-radius: 4px;
+        }
+        
+        .class-name {
+            font-size: 14px;
+            color: #00ff88;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        
+        .class-count {
+            font-size: 18px;
+            color: #ffff00;
+            font-weight: 700;
+        }
+        
+        .time-range-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .time-btn {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+        
+        .time-btn:hover, .time-btn.active {
+            background: rgba(0, 255, 136, 0.2);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #9ca3af;
+        }
+        
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: #ff4444;
+        }
+        
+        .refresh-btn {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            border: none;
+            border-radius: 6px;
+            padding: 12px 24px;
+            color: #0a0e1a;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .refresh-btn:hover {
+            background: linear-gradient(45deg, #00ffaa, #00ff88);
+            box-shadow: 0 0 25px rgba(0, 255, 136, 0.6);
+            transform: translateY(-2px);
+        }
+        
+        .refresh-btn:disabled {
+            background: rgba(100, 100, 100, 0.3);
+            color: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .refresh-btn:disabled:hover {
+            background: rgba(100, 100, 100, 0.3);
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .export-btn {
+            background: rgba(255, 165, 0, 0.1);
+            border: 1px solid #ffaa00;
+            color: #ffaa00;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            margin-left: 10px;
+        }
+        
+        .export-btn:hover {
+            background: rgba(255, 165, 0, 0.2);
+            box-shadow: 0 0 15px rgba(255, 165, 0, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <div class="logo">📊 ANALYTICS DASHBOARD</div>
+        </div>
+        <div class="header-right">
+            <button class="refresh-btn" id="refreshButton">🔄 REFRESH</button>
+            <button class="export-btn" onclick="exportData()">📥 EXPORT</button>
+            <a href="{% url 'live' %}" class="back-button">← BACK TO LIVE</a>
+        </div>
+    </div>
+    
+    <div class="main-container">
+        <h1 class="page-title">Detection Analytics</h1>
+        
+        <!-- Filter Panel -->
+        <div class="filter-panel">
+            <div class="filter-title">🔍 FILTERS & SEARCH <span id="activeFilterCount" style="color: #ffaa00; font-size: 12px;"></span></div>
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label class="filter-label">Time Range</label>
+                    <select class="filter-select" id="timeRangeFilter">
+                        <option value="1">Last 1 Hour</option>
+                        <option value="6">Last 6 Hours</option>
+                        <option value="24" selected>Last 24 Hours</option>
+                        <option value="168">Last 7 Days</option>
+                        <option value="720">Last 30 Days</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Object Class</label>
+                    <select class="filter-select" id="objectClassFilter">
+                        <option value="">All Objects</option>
+                        <option value="person">Person</option>
+                        <option value="car">Car</option>
+                        <option value="truck">Truck</option>
+                        <option value="bus">Bus</option>
+                        <option value="motorcycle">Motorcycle</option>
+                        <option value="bicycle">Bicycle</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Min Confidence</label>
+                    <select class="filter-select" id="confidenceFilter">
+                        <option value="0">All Confidence</option>
+                        <option value="0.5">50%+</option>
+                        <option value="0.7">70%+</option>
+                        <option value="0.8">80%+</option>
+                        <option value="0.9">90%+</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Session ID</label>
+                    <input type="text" class="filter-input" id="sessionIdFilter" placeholder="Enter session ID">
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Start Date</label>
+                    <input type="datetime-local" class="filter-input" id="startDateFilter">
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">End Date</label>
+                    <input type="datetime-local" class="filter-input" id="endDateFilter">
+                </div>
+            </div>
+            
+            <div class="filter-actions">
+                <button class="filter-btn" id="applyFiltersBtn">APPLY FILTERS</button>
+                <button class="filter-btn" id="clearFiltersBtn">CLEAR ALL</button>
+                <button class="filter-btn" id="autoRefreshBtn">AUTO REFRESH</button>
+            </div>
+        </div>
+        
+        <div class="time-range-selector">
+            <button class="time-btn active" onclick="setTimeRange(1)">1 HOUR</button>
+            <button class="time-btn" onclick="setTimeRange(6)">6 HOURS</button>
+            <button class="time-btn" onclick="setTimeRange(24)">24 HOURS</button>
+            <button class="time-btn" onclick="setTimeRange(168)">7 DAYS</button>
+        </div>
+        
+        <div id="loading" class="loading" style="display: none;">
+            <div>🔄 Loading analytics data...</div>
+        </div>
+        
+        <div id="error" class="error" style="display: none;">
+            <div>❌ Error loading data. Please try again.</div>
+        </div>
+        
+        <div id="analytics-content" class="analytics-grid">
+            <!-- Statistics Cards -->
+            <div class="analytics-card">
+                <div class="card-title">📈 Total Detections</div>
+                <div class="stat-value" id="totalDetections">0</div>
+                <div class="stat-label">Objects Detected</div>
+            </div>
+            
+            <div class="analytics-card">
+                <div class="card-title">🎯 Average Confidence</div>
+                <div class="stat-value" id="avgConfidence">0%</div>
+                <div class="stat-label">Detection Accuracy</div>
+            </div>
+            
+            <div class="analytics-card">
+                <div class="card-title">⚡ Max Confidence</div>
+                <div class="stat-value" id="maxConfidence">0%</div>
+                <div class="stat-label">Highest Accuracy</div>
+            </div>
+            
+            <div class="analytics-card">
+                <div class="card-title">📊 Detection Rate</div>
+                <div class="stat-value" id="detectionRate">0/hr</div>
+                <div class="stat-label">Detections Per Hour</div>
+            </div>
+
+            <!-- Hourly Distribution -->
+            <div class="analytics-card" style="grid-column: span 2;">
+                <div class="card-title">⏱️ Hourly Distribution</div>
+                <div id="hourlyChart" class="chart-container">
+                    <div class="chart-placeholder">No data available</div>
+                </div>
+            </div>
+            
+            <!-- Class Breakdown -->
+            <div class="analytics-card">
+                <div class="card-title">🏷️ Object Classes</div>
+                <div class="class-breakdown" id="classBreakdown">
+                    <div class="class-item">
+                        <span class="class-name">Loading...</span>
+                        <span class="class-count">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Detections -->
+            <div class="analytics-card">
+                <div class="card-title">🕒 Recent Detections</div>
+                <div class="detection-list" id="recentDetections">
+                    <div class="detection-item">
+                        <div class="detection-time">Loading...</div>
+                        <div class="detection-class">No data available</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('Analytics script loaded!');
+        
+        let currentTimeRange = 24; // Default to 24 hours
+        let isRefreshing = false; // Flag to prevent multiple simultaneous refreshes
+        let autoRefreshInterval = null; // Auto refresh interval
+        let currentFilters = {
+            timeRange: 24,
+            objectClass: '',
+            minConfidence: 0,
+            sessionId: '',
+            startDate: '',
+            endDate: ''
+        };
+        
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing analytics...');
+            // Clear all data to 0 on page load instead of loading real data
+            clearAllData();
+            
+            // Initialize filter event listeners
+            initializeFilters();
+            
+            // Add click event listener to refresh button
+            const refreshBtn = document.querySelector('.refresh-btn');
+            if (refreshBtn) {
+                console.log('Refresh button found, adding event listener');
+                refreshBtn.addEventListener('click', function(e) {
+                    console.log('=== REFRESH BUTTON CLICKED ===');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    refreshData();
+                });
+                console.log('Refresh button setup complete');
+            } else {
+                console.error('Refresh button not found during DOMContentLoaded');
+            }
+        });
+        
+        // Initialize filter functionality
+        function initializeFilters() {
+            console.log('Initializing filter functionality...');
+            
+            // Apply Filters Button
+            const applyBtn = document.getElementById('applyFiltersBtn');
+            if (applyBtn) {
+                applyBtn.addEventListener('click', function() {
+                    console.log('Apply filters clicked');
+                    applyFilters();
+                });
+            }
+            
+            // Clear Filters Button
+            const clearBtn = document.getElementById('clearFiltersBtn');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', function() {
+                    console.log('Clear filters clicked');
+                    clearFilters();
+                });
+            }
+            
+            // Auto Refresh Button
+            const autoRefreshBtn = document.getElementById('autoRefreshBtn');
+            if (autoRefreshBtn) {
+                autoRefreshBtn.addEventListener('click', function() {
+                    console.log('Auto refresh toggled');
+                    toggleAutoRefresh();
+                });
+            }
+            
+            // Real-time filter updates
+            const filterInputs = document.querySelectorAll('.filter-input, .filter-select');
+            filterInputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    console.log('Filter changed:', input.id, input.value);
+                    // Auto-apply filters after a short delay
+                    setTimeout(() => {
+                        applyFilters();
+                    }, 500);
+                });
+            });
+            
+            console.log('Filter initialization complete');
+        }
+        
+        // Apply current filters
+        function applyFilters() {
+            console.log('Applying filters...');
+            
+            // Get current filter values
+            currentFilters.timeRange = document.getElementById('timeRangeFilter')?.value || 24;
+            currentFilters.objectClass = document.getElementById('objectClassFilter')?.value || '';
+            currentFilters.minConfidence = document.getElementById('confidenceFilter')?.value || 0;
+            currentFilters.sessionId = document.getElementById('sessionIdFilter')?.value || '';
+            currentFilters.startDate = document.getElementById('startDateFilter')?.value || '';
+            currentFilters.endDate = document.getElementById('endDateFilter')?.value || '';
+            
+            console.log('Current filters:', currentFilters);
+            
+            // Update active filter count
+            updateActiveFilterCount();
+            
+            // Update apply button state
+            const applyBtn = document.getElementById('applyFiltersBtn');
+            if (applyBtn) {
+                applyBtn.textContent = 'APPLYING...';
+                applyBtn.disabled = true;
+            }
+            
+            // Refresh data with filters
+            refreshDataWithFilters();
+        }
+        
+        // Update active filter count display
+        function updateActiveFilterCount() {
+            let activeCount = 0;
+            
+            // Count non-default filters
+            if (currentFilters.objectClass) activeCount++;
+            if (currentFilters.minConfidence > 0) activeCount++;
+            if (currentFilters.sessionId) activeCount++;
+            if (currentFilters.startDate) activeCount++;
+            if (currentFilters.endDate) activeCount++;
+            
+            const countElement = document.getElementById('activeFilterCount');
+            if (countElement) {
+                if (activeCount > 0) {
+                    countElement.textContent = `(${activeCount} active)`;
+                } else {
+                    countElement.textContent = '';
+                }
+            }
+        }
+        
+        // Clear all filters
+        function clearFilters() {
+            console.log('Clearing all filters...');
+            
+            // Reset filter inputs
+            document.getElementById('timeRangeFilter').value = '24';
+            document.getElementById('objectClassFilter').value = '';
+            document.getElementById('confidenceFilter').value = '0';
+            document.getElementById('sessionIdFilter').value = '';
+            document.getElementById('startDateFilter').value = '';
+            document.getElementById('endDateFilter').value = '';
+            
+            // Reset filter state
+            currentFilters = {
+                timeRange: 24,
+                objectClass: '',
+                minConfidence: 0,
+                sessionId: '',
+                startDate: '',
+                endDate: ''
+            };
+            
+            // Update active filter count
+            updateActiveFilterCount();
+            
+            // Refresh data
+            refreshDataWithFilters();
+        }
+        
+        // Toggle auto refresh
+        function toggleAutoRefresh() {
+            const autoRefreshBtn = document.getElementById('autoRefreshBtn');
+            
+            if (autoRefreshInterval) {
+                // Stop auto refresh
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+                autoRefreshBtn.textContent = 'AUTO REFRESH';
+                autoRefreshBtn.classList.remove('active');
+                console.log('Auto refresh stopped');
+            } else {
+                // Start auto refresh
+                autoRefreshInterval = setInterval(() => {
+                    console.log('Auto refresh triggered');
+                    refreshDataWithFilters();
+                }, 30000); // Refresh every 30 seconds
+                autoRefreshBtn.textContent = 'STOP AUTO';
+                autoRefreshBtn.classList.add('active');
+                console.log('Auto refresh started');
+            }
+        }
+        
+        function setTimeRange(hours) {
+            currentTimeRange = hours;
+            
+            // Update active button
+            document.querySelectorAll('.time-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Refresh data
+            refreshData();
+        }
+        
+        // New function for refreshing with filters
+        async function refreshDataWithFilters() {
+            console.log('=== REFRESH WITH FILTERS STARTED ===');
+            if (isRefreshing) {
+                console.log('Already refreshing, ignoring call');
+                return;
+            }
+            
+            isRefreshing = true;
+            console.log('Setting isRefreshing to true');
+            
+            // Update refresh button
+            const refreshBtn = document.querySelector('.refresh-btn');
+            if (refreshBtn) {
+                console.log('Refresh button found, updating UI...');
+                refreshBtn.textContent = '🔄 REFRESHING...';
+                refreshBtn.disabled = true;
+                console.log('Button text updated to:', refreshBtn.textContent);
+            }
+            
+            try {
+                console.log('Data cleared, about to fetch new data with filters...');
+                
+                // Clear existing data first
+                clearAllData();
+                
+                // Build URL with filters
+                const params = new URLSearchParams();
+                params.append('hours', currentFilters.timeRange);
+                
+                if (currentFilters.objectClass) {
+                    params.append('object_class', currentFilters.objectClass);
+                }
+                if (currentFilters.minConfidence > 0) {
+                    params.append('min_confidence', currentFilters.minConfidence);
+                }
+                if (currentFilters.sessionId) {
+                    params.append('session_id', currentFilters.sessionId);
+                }
+                if (currentFilters.startDate) {
+                    params.append('start_date', currentFilters.startDate);
+                }
+                if (currentFilters.endDate) {
+                    params.append('end_date', currentFilters.endDate);
+                }
+                
+                const url = `{% url 'detection_report' %}?${params.toString()}`;
+                console.log('Making fetch request to:', url);
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+                
+                console.log('Fetch completed! Status:', response.status, 'OK:', response.ok);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Data received! Success:', data.success, 'Total detections:', data.statistics?.total_detections);
+                    
+                    if (data.success) {
+                        console.log('About to call updateAnalytics...');
+                        updateAnalytics(data);
+                        console.log('Analytics update completed!');
+                    } else {
+                        console.error('API returned error:', data.error);
+                        showError('Failed to load analytics data: ' + data.error);
+                    }
+                } else {
+                    console.error('HTTP error:', response.status, response.statusText);
+                    showError('Failed to load analytics data. Please try again.');
+                }
+                
+            } catch (error) {
+                console.error('Refresh error:', error);
+                showError('Error loading analytics data: ' + error.message);
+            } finally {
+                console.log('Refresh completed, resetting button state...');
+                isRefreshing = false;
+                
+                // Reset refresh button
+                const refreshBtn = document.querySelector('.refresh-btn');
+                if (refreshBtn) {
+                    refreshBtn.textContent = '🔄 REFRESH';
+                    refreshBtn.disabled = false;
+                    console.log('Button state reset');
+                }
+                
+                // Reset apply button
+                const applyBtn = document.getElementById('applyFiltersBtn');
+                if (applyBtn) {
+                    applyBtn.textContent = 'APPLY FILTERS';
+                    applyBtn.disabled = false;
+                }
+            }
+        }
+        
+        async function refreshData() {
+            console.log('=== REFRESH STARTED ===');
+            console.log('isRefreshing:', isRefreshing);
+            
+            // Prevent multiple simultaneous refreshes
+            if (isRefreshing) {
+                console.log('Refresh already in progress, ignoring call');
+                return;
+            }
+            
+            isRefreshing = true;
+            console.log('Setting isRefreshing to true');
+            
+            // Disable refresh button and show loading state
+            console.log('Looking for refresh button...');
+            const refreshBtn = document.querySelector('.refresh-btn');
+            if (!refreshBtn) {
+                console.error('Refresh button not found!');
+                isRefreshing = false;
+                return;
+            }
+            
+            console.log('Refresh button found, updating UI...');
+            const originalText = refreshBtn.textContent;
+            refreshBtn.textContent = '🔄 REFRESHING...';
+            refreshBtn.disabled = true;
+            console.log('Button text updated to:', refreshBtn.textContent);
+            
+            console.log('Showing loading overlay...');
+            showLoading();
+            
+            // Clear all data first
+            console.log('Clearing all data...');
+            clearAllData();
+            console.log('Data cleared, fetching new data...');
+            
+            try {
+                const url = `{% url 'detection_report' %}?hours=${currentTimeRange}`;
+                console.log('Fetching from URL:', url);
+                console.log('Current time range:', currentTimeRange);
+                
+                console.log('Making fetch request...');
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+                
+                console.log('Fetch completed, response status:', response.status);
+                console.log('Response ok:', response.ok);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                console.log('Parsing JSON response...');
+                const data = await response.json();
+                console.log('Response data received:', data);
+                console.log('Data success:', data.success);
+                
+                if (data.success) {
+                    console.log('Calling updateAnalytics...');
+                    updateAnalytics(data);
+                    console.log('Calling hideLoading...');
+                    hideLoading();
+                    console.log('Analytics updated successfully');
+                } else {
+                    console.log('Data success is false, showing error');
+                    showError('Failed to load analytics data: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error in refreshData:', error);
+                console.error('Error name:', error.name);
+                console.error('Error message:', error.message);
+                showError('Error loading analytics data: ' + error.message);
+            } finally {
+                console.log('Finally block - re-enabling button...');
+                // Re-enable refresh button
+                refreshBtn.textContent = originalText;
+                refreshBtn.disabled = false;
+                isRefreshing = false;
+                console.log('Refresh button re-enabled, isRefreshing set to false');
+                console.log('=== REFRESH COMPLETED ===');
+            }
+        }
+        
+        function clearAllData() {
+            console.log('Clearing all data...');
+            
+            // Reset all statistics to 0
+            const totalDetections = document.getElementById('totalDetections');
+            const avgConfidence = document.getElementById('avgConfidence');
+            const maxConfidence = document.getElementById('maxConfidence');
+            const detectionRate = document.getElementById('detectionRate');
+            
+            if (totalDetections) totalDetections.textContent = '0';
+            if (avgConfidence) avgConfidence.textContent = '0%';
+            if (maxConfidence) maxConfidence.textContent = '0%';
+            if (detectionRate) detectionRate.textContent = '0/hr';
+            
+            // Clear class breakdown
+            const classBreakdown = document.getElementById('classBreakdown');
+            if (classBreakdown) {
+                classBreakdown.innerHTML = `
+                    <div class="class-item">
+                        <span class="class-name">No detections</span>
+                        <span class="class-count">0</span>
+                    </div>
+                `;
+            }
+            
+            // Clear recent detections
+            const recentDetections = document.getElementById('recentDetections');
+            if (recentDetections) {
+                recentDetections.innerHTML = `
+                    <div class="detection-item">
+                        <div class="detection-time">No recent activity</div>
+                        <div class="detection-class">Start detection to see data</div>
+                    </div>
+                `;
+            }
+            
+            // Clear hourly chart
+            const hourlyChart = document.getElementById('hourlyChart');
+            if (hourlyChart) {
+                hourlyChart.innerHTML = `
+                    <div style="text-align: center; color: #666; padding: 20px;">
+                        <div style="font-size: 14px; margin-bottom: 10px;">📊 HOURLY DISTRIBUTION</div>
+                        <div style="font-size: 12px;">No data available</div>
+                        <div style="font-size: 10px; margin-top: 10px; color: #888;">Click refresh to load data</div>
+                    </div>
+                `;
+            }
+            
+            console.log('Data cleared successfully');
+        }
+        
+        function updateAnalytics(data) {
+            console.log('Analytics data received:', data);
+            
+            // Update statistics
+            const totalDetections = document.getElementById('totalDetections');
+            const avgConfidence = document.getElementById('avgConfidence');
+            const maxConfidence = document.getElementById('maxConfidence');
+            const detectionRateElement = document.getElementById('detectionRate');
+            
+            if (totalDetections) totalDetections.textContent = data.statistics.total_detections || 0;
+            if (avgConfidence) avgConfidence.textContent = Math.round((data.statistics.avg_confidence || 0) * 100) + '%';
+            if (maxConfidence) maxConfidence.textContent = Math.round((data.statistics.max_confidence || 0) * 100) + '%';
+            
+            // Calculate detection rate
+            const detectionRate = currentTimeRange > 0 ? Math.round((data.statistics.total_detections || 0) / currentTimeRange) : 0;
+            if (detectionRateElement) detectionRateElement.textContent = detectionRate + '/hr';
+            
+            // Update class breakdown
+            updateClassBreakdown(data.class_breakdown || []);
+            
+            // Update recent detections
+            updateRecentDetections(data.recent_detections || []);
+            
+            // Update hourly chart
+            console.log('Hourly distribution data:', data.hourly_distribution);
+            updateHourlyChart(data.hourly_distribution || []);
+        }
+        
+        function updateClassBreakdown(classData) {
+            const container = document.getElementById('classBreakdown');
+            container.innerHTML = '';
+            
+            if (classData.length === 0) {
+                container.innerHTML = `
+                    <div class="class-item">
+                        <span class="class-name">No data</span>
+                        <span class="class-count">0</span>
+                    </div>
+                `;
+                return;
+            }
+            
+            classData.forEach(item => {
+                const classItem = document.createElement('div');
+                classItem.className = 'class-item';
+                classItem.innerHTML = `
+                    <span class="class-name">${item.object_class}</span>
+                    <span class="class-count">${item.count}</span>
+                `;
+                container.appendChild(classItem);
+            });
+        }
+        
+        function updateRecentDetections(detections) {
+            const container = document.getElementById('recentDetections');
+            container.innerHTML = '';
+            
+            if (detections.length === 0) {
+                container.innerHTML = `
+                    <div class="detection-item">
+                        <div class="detection-time">No recent detections</div>
+                        <div class="detection-class">No data available</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            detections.forEach(detection => {
+                const detectionItem = document.createElement('div');
+                detectionItem.className = 'detection-item';
+                
+                const timestamp = new Date(detection.timestamp);
+                const timeStr = timestamp.toLocaleString();
+                
+                detectionItem.innerHTML = `
+                    <div class="detection-header">
+                        <span class="detection-class">${detection.object_class.toUpperCase()}</span>
+                        <span class="detection-confidence">${Math.round(detection.confidence * 100)}%</span>
+                    </div>
+                    <div class="detection-time">${timeStr}</div>
+                    <div class="detection-bbox">Position: ${detection.bbox.join(', ')}</div>
+                `;
+                
+                container.appendChild(detectionItem);
+            });
+        }
+        
+        function updateHourlyChart(hourlyData) {
+            const container = document.getElementById('hourlyChart');
+            
+            console.log('Hourly data received:', hourlyData);
+            
+            if (!hourlyData || hourlyData.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">No hourly data available</div>';
+                return;
+            }
+            
+            // Create a better visual chart with proper timeline
+            let chartHtml = '<div style="font-family: monospace; font-size: 10px; line-height: 1.3;">';
+            
+            // Find max count for scaling
+            const maxCount = Math.max(...hourlyData.map(h => h.count));
+            const scale = maxCount > 0 ? 15 / maxCount : 1;
+            
+            // Add timeline header
+            chartHtml += '<div style="display: flex; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px solid #00ff88;">';
+            chartHtml += '<span style="width: 60px; color: #00ff88; font-weight: bold;">TIME</span>';
+            chartHtml += '<span style="flex: 1; color: #00ff88; font-weight: bold; text-align: center;">DETECTIONS</span>';
+            chartHtml += '<span style="width: 80px; color: #00ff88; font-weight: bold; text-align: right;">COUNT</span>';
+            chartHtml += '</div>';
+            
+            // Data is already sorted from backend (oldest first)
+            hourlyData.forEach((hour, index) => {
+                const barLength = Math.max(1, Math.round(hour.count * scale));
+                const bar = '█'.repeat(barLength);
+                const percentage = maxCount > 0 ? Math.round((hour.count / maxCount) * 100) : 0;
+                
+                // Add visual timeline indicator
+                const timelineIndicator = index === hourlyData.length - 1 ? '▶' : '│';
+                
+                chartHtml += `
+                    <div style="display: flex; align-items: center; margin-bottom: 2px; padding: 1px 0; position: relative;">
+                        <span style="width: 60px; color: #00ff88; font-size: 9px;">${hour.hour}</span>
+                        <div style="flex: 1; display: flex; align-items: center; margin: 0 10px;">
+                            <span style="color: #ffff00; margin-right: 5px;">${bar}</span>
+                            <span style="color: #666; font-size: 8px;">${percentage}%</span>
+                        </div>
+                        <span style="width: 80px; color: #9ca3af; font-size: 9px; text-align: right;">${hour.count}</span>
+                        <span style="position: absolute; left: -15px; color: #00ff88; font-size: 8px;">${timelineIndicator}</span>
+                    </div>
+                `;
+            });
+            
+            // Add timeline footer
+            chartHtml += '<div style="margin-top: 8px; padding-top: 5px; border-top: 1px solid #333; color: #666; font-size: 8px; text-align: center;">';
+            chartHtml += `Total: ${hourlyData.reduce((sum, h) => sum + h.count, 0)} detections across ${hourlyData.length} hours`;
+            chartHtml += '</div>';
+            
+            chartHtml += '</div>';
+            
+            container.innerHTML = chartHtml;
+        }
+        
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('analytics-content').style.display = 'none';
+        }
+        
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('analytics-content').style.display = 'grid';
+        }
+        
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error').innerHTML = `<div>❌ ${message}</div>`;
+        }
+        
+        async function exportData() {
+            console.log('Export button clicked');
+            
+            try {
+                // Show loading state
+                const exportBtn = document.querySelector('.export-btn');
+                const originalText = exportBtn.textContent;
+                exportBtn.textContent = '📥 EXPORTING...';
+                exportBtn.disabled = true;
+                
+                // Get current data
+                const url = `{% url 'detection_report' %}?hours=${currentTimeRange}`;
+                console.log('Fetching data for export from:', url);
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Data received for export:', data);
+                
+                if (data.success) {
+                    // Generate CSV content
+                    const csvContent = generateCSV(data);
+                    
+                    // Create and download file
+                    downloadCSV(csvContent, `analytics_export_${new Date().toISOString().split('T')[0]}.csv`);
+                    
+                    console.log('Export completed successfully');
+                } else {
+                    throw new Error('Failed to fetch data for export: ' + data.error);
+                }
+                
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('Export failed: ' + error.message);
+            } finally {
+                // Reset button state
+                const exportBtn = document.querySelector('.export-btn');
+                exportBtn.textContent = '📥 EXPORT';
+                exportBtn.disabled = false;
+            }
+        }
+        
+        function generateCSV(data) {
+            let csv = '';
+            
+            // Add header
+            csv += 'AI SURVEILLANCE SYSTEM - ANALYTICS EXPORT\n';
+            csv += `Export Date: ${new Date().toLocaleString()}\n`;
+            csv += `Time Range: ${currentTimeRange} hours\n`;
+            csv += `Total Detections: ${data.statistics.total_detections || 0}\n`;
+            csv += `Average Confidence: ${((data.statistics.avg_confidence || 0) * 100).toFixed(2)}%\n`;
+            csv += `Max Confidence: ${((data.statistics.max_confidence || 0) * 100).toFixed(2)}%\n\n`;
+            
+            // Add statistics section
+            csv += '=== OVERALL STATISTICS ===\n';
+            csv += 'Metric,Value\n';
+            csv += `Total Detections,${data.statistics.total_detections || 0}\n`;
+            csv += `Average Confidence,${((data.statistics.avg_confidence || 0) * 100).toFixed(2)}%\n`;
+            csv += `Max Confidence,${((data.statistics.max_confidence || 0) * 100).toFixed(2)}%\n`;
+            csv += `Min Confidence,${((data.statistics.min_confidence || 0) * 100).toFixed(2)}%\n`;
+            csv += `Detection Rate,${Math.round((data.statistics.total_detections || 0) / currentTimeRange)}/hr\n\n`;
+            
+            // Add class breakdown section
+            csv += '=== OBJECT CLASS BREAKDOWN ===\n';
+            csv += 'Object Class,Count,Average Confidence\n';
+            if (data.class_breakdown && data.class_breakdown.length > 0) {
+                data.class_breakdown.forEach(item => {
+                    csv += `${item.object_class},${item.count},${(item.avg_confidence * 100).toFixed(2)}%\n`;
+                });
+            } else {
+                csv += 'No detections,0,0%\n';
+            }
+            csv += '\n';
+            
+            // Add hourly distribution section
+            csv += '=== HOURLY DISTRIBUTION ===\n';
+            csv += 'Hour,Detection Count\n';
+            if (data.hourly_distribution && data.hourly_distribution.length > 0) {
+                data.hourly_distribution.forEach(hour => {
+                    csv += `${hour.hour},${hour.count}\n`;
+                });
+            } else {
+                csv += 'No data,0\n';
+            }
+            csv += '\n';
+            
+            // Add recent detections section
+            csv += '=== RECENT DETECTIONS ===\n';
+            csv += 'Timestamp,Object Class,Confidence,Bounding Box,Session ID\n';
+            if (data.recent_detections && data.recent_detections.length > 0) {
+                data.recent_detections.forEach(detection => {
+                    const timestamp = new Date(detection.timestamp).toLocaleString();
+                    const confidence = (detection.confidence * 100).toFixed(2);
+                    const bbox = detection.bbox ? JSON.stringify(detection.bbox) : 'N/A';
+                    csv += `${timestamp},${detection.object_class},${confidence}%,${bbox},${detection.session_id || 'N/A'}\n`;
+                });
+            } else {
+                csv += 'No recent detections,N/A,N/A,N/A,N/A\n';
+            }
+            
+            return csv;
+        }
+        
+        function downloadCSV(csvContent, filename) {
+            // Create blob and download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                console.log('CSV file downloaded:', filename);
+                alert(`Analytics data exported successfully!\n\nFile: ${filename}\nRecords: ${csvContent.split('\n').length - 1} lines`);
+            } else {
+                throw new Error('CSV download not supported in this browser');
+            }
+        }
+        
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        function testRefresh() {
+            console.log('=== TEST REFRESH STARTED ===');
+            console.log('isRefreshing:', isRefreshing);
+            console.log('currentTimeRange:', currentTimeRange);
+            
+            // Force clear the refreshing flag
+            isRefreshing = false;
+            
+            // Call refresh
+            refreshData();
+            
+            console.log('=== TEST REFRESH COMPLETED ===');
+        }
+    </script>
+</body>
+</html>

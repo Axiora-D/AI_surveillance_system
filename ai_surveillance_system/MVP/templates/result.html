@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Detections</title>
+</head>
+<body>
+    <h3>Detections</h3>
+    <ul>
+      {% for d in detections %}
+        <li>{{ d.label }} — score: {{ d.gender_score|floatformat:2 }} — box: {{ d.box }}</li>
+      {% empty %}
+        <li>No detections</li>
+      {% endfor %}
+    </ul>
+    <img src="{{ out_url }}" alt="detection result" style="max-width: 100%; height: auto;"/>
+    <p><a href="{% url 'upload_and_detect' %}">Try another</a></p>
+    <p><a href="{% url 'options' %}">Back to options</a></p>
+</body>
+</html>
+

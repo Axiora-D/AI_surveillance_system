@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Settings - Surveillance System</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: #0a0e1a;
+            color: #00ff88;
+            overflow-y: auto;
+            min-height: 100vh;
+            position: relative;
+        }
+        
+        /* Animated background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+            z-index: -2;
+        }
+        
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+        
+        .container {
+            display: flex;
+            min-height: 100vh;
+            position: relative;
+        }
+        
+        .sidebar {
+            width: 300px;
+            background: rgba(6, 20, 35, 0.9);
+            border-right: 2px solid #00ff88;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(10px);
+            position: fixed;
+            height: 100vh;
+        }
+        
+        .system-status {
+            color: #00ff88;
+            font-size: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .status-line {
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px #00ff88;
+        }
+        
+        .main-content {
+            flex: 1;
+            margin-left: 300px;
+            padding: 30px;
+        }
+        
+        .settings-panel {
+            background: rgba(15, 25, 45, 0.95);
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            min-height: 600px;
+            box-shadow: 
+                0 0 30px rgba(0, 255, 136, 0.3),
+                inset 0 0 20px rgba(0, 255, 136, 0.1);
+            backdrop-filter: blur(15px);
+            animation: windowGlow 3s ease-in-out infinite alternate;
+        }
+        
+        @keyframes windowGlow {
+            0% { box-shadow: 0 0 30px rgba(0, 255, 136, 0.3), inset 0 0 20px rgba(0, 255, 136, 0.1); }
+            100% { box-shadow: 0 0 50px rgba(0, 255, 136, 0.5), inset 0 0 30px rgba(0, 255, 136, 0.15); }
+        }
+        
+        .panel-header {
+            background: rgba(0, 255, 136, 0.1);
+            padding: 15px;
+            border-bottom: 1px solid #00ff88;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .panel-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #00ff88;
+            text-shadow: 0 0 20px #00ff88;
+        }
+        
+        .panel-content {
+            padding: 30px;
+        }
+        
+        .settings-section {
+            margin-bottom: 30px;
+            padding: 25px;
+            background: rgba(0, 20, 40, 0.5);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 8px;
+        }
+        
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #00ff88;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section-description {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-bottom: 20px;
+        }
+        
+        /* 2FA Status Display */
+        .status-display {
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(0, 255, 136, 0.2);
+        }
+        
+        .status-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        
+        .status-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .status-value {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        
+        .status-value.enabled {
+            color: #00ff88;
+        }
+        
+        .status-value.disabled {
+            color: #ff4444;
+        }
+        
+        /* 2FA Setup Form */
+        .setup-form {
+            display: none;
+            margin-top: 20px;
+        }
+        
+        .setup-form.active {
+            display: block;
+        }
+        
+        .qr-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        .qr-code {
+            width: 200px;
+            height: 200px;
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            background: white;
+            padding: 10px;
+        }
+        
+        .secret-display {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid #00ff88;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            font-size: 12px;
+            text-align: center;
+            word-break: break-all;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-label {
+            font-size: 12px;
+            margin-bottom: 8px;
+            display: block;
+            opacity: 0.9;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            background: rgba(0, 20, 40, 0.8);
+            border: 1px solid #00ff88;
+            border-radius: 4px;
+            padding: 12px;
+            color: #00ff88;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #00ffaa;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+            background: rgba(0, 30, 50, 0.9);
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: #0a0e1a;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(45deg, #00ffaa, #00ff88);
+            box-shadow: 0 0 25px rgba(0, 255, 136, 0.6);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 68, 68, 0.1);
+            color: #ff4444;
+            border: 1px solid #ff4444;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 68, 68, 0.2);
+            box-shadow: 0 0 15px rgba(255, 68, 68, 0.4);
+        }
+        
+        .btn-warning {
+            background: rgba(255, 170, 0, 0.1);
+            color: #ffaa00;
+            border: 1px solid #ffaa00;
+        }
+        
+        .btn-warning:hover {
+            background: rgba(255, 170, 0, 0.2);
+            box-shadow: 0 0 15px rgba(255, 170, 0, 0.4);
+        }
+        
+        .backup-codes {
+            display: none;
+            background: rgba(255, 170, 0, 0.1);
+            border: 1px solid #ffaa00;
+            padding: 20px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+        
+        .backup-codes h4 {
+            color: #ffaa00;
+            margin-bottom: 15px;
+        }
+        
+        .backup-codes-list {
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            color: #00ff88;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            line-height: 2;
+        }
+        
+        .warning {
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid #ff4444;
+            color: #ff4444;
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+        
+        .info {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+        
+        .back-button {
+            display: inline-block;
+            margin-bottom: 20px;   /* creates space */
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 700;
+            transition: all 0.3s ease;
+                }
+        
+        .back-button:hover {
+            background: rgba(0, 255, 136, 0.2);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                position: relative;
+                height: auto;
+                border-right: none;
+                border-bottom: 2px solid #00ff88;
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="system-status">
+                <div class="status-line">● SYSTEM ONLINE</div>
+                <div class="status-line">CN.NET v2.4.1</div>
+                <div class="status-line">● AUTHENTICATED</div>
+                <div class="status-line">USER: {{ user.username|upper }}</div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <a href="{% url 'options' %}" class="back-button">← BACK TO OPTIONS</a>
+            
+            <div class="settings-panel">
+                <div class="panel-header">
+                    <div class="panel-title">⚙️ SYSTEM SETTINGS</div>
+                </div>
+                
+                <div class="panel-content">
+                    <!-- 2FA Security Section -->
+                    <div class="settings-section">
+                        <div class="section-title">
+                            🔐 TWO-FACTOR AUTHENTICATION (2FA)
+                        </div>
+                        <div class="section-description">
+                            Add an extra layer of security to your account with two-factor authentication
+                        </div>
+                        
+                        <!-- 2FA Status -->
+                        <div id="status-section">
+                            <div class="status-display">
+                                <div class="status-item">
+                                    <span class="status-label">Current Status:</span>
+                                    <span class="status-value {% if two_factor_enabled %}enabled{% else %}disabled{% endif %}" id="current-status">
+                                        {% if two_factor_enabled %}ENABLED{% else %}DISABLED{% endif %}
+                                    </span>
+                                </div>
+                                <div class="status-item">
+                                    <span class="status-label">Last Updated:</span>
+                                    <span class="status-value" id="last-updated">{% if two_factor_enabled %}Active{% else %}Never{% endif %}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="action-buttons">
+                                {% if not two_factor_enabled %}
+                                    <button class="btn btn-primary" onclick="showSetupForm()">ENABLE 2FA</button>
+                                {% else %}
+                                    <button class="btn btn-secondary" onclick="disable2FA()">DISABLE 2FA</button>
+                                    <button class="btn btn-warning" onclick="regenerateBackupCodes()">REGENERATE BACKUP CODES</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- 2FA Setup Form -->
+                        <div id="setup-section" class="setup-form">
+                            <div class="info">
+                                📱 Scan the QR code below with your authenticator app (Google Authenticator, Authy, Microsoft Authenticator, etc.)
+                            </div>
+                            
+                            <div class="qr-container">
+                                <img src="{{ qr_code }}" alt="QR Code" class="qr-code">
+                            </div>
+                            
+                            <div class="secret-display">
+                                <strong>Manual Entry Key:</strong><br>
+                                {{ secret }}
+                            </div>
+                            
+                            <div class="input-group">
+                                <label class="input-label">🔐 ENTER 6-DIGIT CODE FROM YOUR AUTHENTICATOR APP</label>
+                                <input type="text" id="token-input" placeholder="123456" maxlength="6" pattern="[0-9]{6}">
+                            </div>
+                            
+                            <button class="btn btn-primary" onclick="verifyToken()">VERIFY & ENABLE 2FA</button>
+                            <button class="btn btn-secondary" onclick="testVerification()">TEST VERIFICATION</button>
+                            <button class="btn btn-secondary" onclick="hideSetupForm()">CANCEL</button>
+                            
+                            <div class="backup-codes" id="backup-codes">
+                                <h4>⚠️ BACKUP CODES - SAVE THESE SECURELY</h4>
+                                <div class="backup-codes-list" id="backup-codes-list"></div>
+                                <div class="warning">
+                                    ⚠ Store these codes in a safe place. Each code can only be used once to access your account if you lose your authenticator device.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Settings Sections Can Be Added Here -->
+                    <div class="settings-section">
+                        <div class="section-title">
+                            📊 DETECTION SETTINGS
+                        </div>
+                        <div class="section-description">
+                            Configure detection parameters and system preferences (Coming Soon)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check 2FA status
+        const isEnabled = '{{ two_factor_enabled|yesno:"true,false" }}' === 'true';
+        
+        // Auto-format token input (numbers only)
+        document.addEventListener('DOMContentLoaded', function() {
+            const tokenInput = document.getElementById('token-input');
+            if (tokenInput) {
+                tokenInput.addEventListener('input', function(e) {
+                    e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+                });
+            }
+            
+            // Hide setup form if 2FA is enabled
+            if (isEnabled) {
+                hideSetupForm();
+            }
+        });
+        
+        function showSetupForm() {
+            document.getElementById('status-section').style.display = 'none';
+            document.getElementById('setup-section').classList.add('active');
+        }
+        
+        function hideSetupForm() {
+            document.getElementById('setup-section').classList.remove('active');
+            document.getElementById('status-section').style.display = 'block';
+        }
+        
+        function verifyToken() {
+            const tokenInput = document.getElementById('token-input');
+            const token = tokenInput.value.trim();
+            
+            if (!token || token.length !== 6) {
+                alert('Please enter a valid 6-digit code');
+                return;
+            }
+            
+            const verifyBtn = event.target;
+            const originalText = verifyBtn.textContent;
+            verifyBtn.textContent = 'VERIFYING...';
+            verifyBtn.disabled = true;
+            
+            fetch('{% url "verify-2fa-setup" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: `token=${token}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                verifyBtn.textContent = originalText;
+                verifyBtn.disabled = false;
+                
+                if (data.success) {
+                    // Show backup codes
+                    document.getElementById('backup-codes').style.display = 'block';
+                    document.getElementById('backup-codes-list').innerHTML = data.backup_codes.join('<br>');
+                    
+                    alert('2FA enabled successfully! Please save your backup codes.');
+                    
+                    // Reload page after 2 seconds to show updated status
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    let errorMsg = 'Error: ' + (data.error || 'Unknown error');
+                    if (data.current_token) {
+                        errorMsg += `\n\nCurrent valid token: ${data.current_token}`;
+                    }
+                    alert(errorMsg);
+                }
+            })
+            .catch(error => {
+                verifyBtn.textContent = originalText;
+                verifyBtn.disabled = false;
+                alert('Error verifying token: ' + error.message);
+            });
+        }
+        
+        function disable2FA() {
+            if (confirm('Are you sure you want to disable 2FA? This will make your account less secure.')) {
+                fetch('{% url "disable-2fa" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        alert('2FA has been disabled successfully');
+                        window.location.reload();
+                    } else {
+                        alert('Error disabling 2FA');
+                    }
+                })
+                .catch(error => {
+                    alert('Error disabling 2FA: ' + error);
+                });
+            }
+        }
+        
+        function regenerateBackupCodes() {
+            if (confirm('Are you sure you want to regenerate backup codes? Your old codes will no longer work.')) {
+                fetch('{% url "regenerate-backup-codes" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const codes = data.backup_codes.join('\n');
+                        alert('Your new backup codes:\n\n' + codes + '\n\nPlease save these securely!');
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    alert('Error regenerating backup codes: ' + error);
+                });
+            }
+        }
+        
+        function testVerification() {
+            fetch('{% url "verify-2fa-setup" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: 'token=test'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.current_token) {
+                    alert(`Current valid token: ${data.current_token}\n\nUse this token to test verification.`);
+                    document.getElementById('token-input').value = data.current_token;
+                } else {
+                    alert('Test response: ' + JSON.stringify(data));
+                }
+            })
+            .catch(error => {
+                alert('Test error: ' + error.message);
+            });
+        }
+        
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+</body>
+</html>
+

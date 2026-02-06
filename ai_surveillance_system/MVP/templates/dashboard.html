@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOLO Human Detection Dashboard</title>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #000;
+            color: #4ade80;
+            min-height: 100vh;
+        }
+
+        .header {
+            background-color: #111827;
+            border-bottom: 2px solid rgba(34, 197, 94, 0.5);
+            padding: 12px 24px;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-title h1 {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .divider {
+            height: 24px;
+            width: 1px;
+            background-color: rgba(34, 197, 94, 0.5);
+        }
+
+        .model-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .time-display {
+            text-align: center;
+        }
+
+        .time {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .date {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+        }
+
+        .status-ready {
+            background-color: #4ade80;
+        }
+
+        .status-processing {
+            background-color: #fbbf24;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+
+        .sidebar {
+            width: 320px;
+            background-color: #111827;
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .sidebar-left {
+            border-right: 2px solid rgba(34, 197, 94, 0.5);
+        }
+
+        .sidebar-right {
+            border-left: 2px solid rgba(34, 197, 94, 0.5);
+        }
+
+        .section {
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 16px;
+        }
+
+        .upload-area {
+            border: 2px dashed rgba(34, 197, 94, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s;
+            margin-bottom: 16px;
+        }
+
+        .upload-area:hover {
+            border-color: #4ade80;
+        }
+
+        .upload-input {
+            display: none;
+        }
+
+        .upload-content {
+            color: #4ade80;
+        }
+
+        .upload-subtitle {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 4px;
+        }
+
+        .start-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #16a34a;
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-family: inherit;
+        }
+
+        .start-btn:hover:not(:disabled) {
+            background-color: #15803d;
+        }
+
+        .start-btn:disabled {
+            background-color: #4b5563;
+            cursor: not-allowed;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(0, 0, 0, 0.3);
+            border-top: 2px solid #000;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .info-box {
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .info-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-label {
+            font-size: 14px;
+            color: #9ca3af;
+        }
+
+        .info-value {
+            font-size: 14px;
+            color: #4ade80;
+        }
+
+        .stat-box {
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            margin-bottom: 12px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4ade80;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 16px;
+        }
+
+        .video-container {
+            height: 100%;
+            background-color: #000;
+            border: 2px solid rgba(34, 197, 94, 0.5);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 16px;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 4px 12px;
+            border-radius: 4px;
+            z-index: 10;
+        }
+
+        .video-overlay-left {
+            left: 16px;
+        }
+
+        .video-overlay-right {
+            right: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .video-display {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .video-element {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .video-wrapper {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #detection-overlays {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            pointer-events: none !important;
+            z-index: 10 !important;
+        }
+
+        .placeholder {
+            text-align: center;
+            color: rgba(74, 222, 128, 0.5);
+        }
+
+        .placeholder-icon {
+            width: 96px;
+            height: 96px;
+            margin: 0 auto 16px;
+        }
+
+        .placeholder-title {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .placeholder-subtitle {
+            font-size: 14px;
+            color: #9ca3af;
+        }
+
+        .detection-box {
+            position: absolute;
+            border: 2px solid #ef4444;
+            background-color: rgba(239, 68, 68, 0.1);
+            pointer-events: none;
+        }
+
+        .detection-label {
+            position: absolute;
+            top: -32px;
+            left: 0;
+            background-color: #ef4444;
+            color: white;
+            padding: 2px 8px;
+            font-size: 12px;
+            border-radius: 2px;
+        }
+
+        .video-controls {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .control-btn {
+            background: none;
+            border: none;
+            color: #4ade80;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: color 0.3s;
+        }
+
+        .control-btn:hover {
+            color: white;
+        }
+
+        .detection-item {
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            margin-bottom: 8px;
+        }
+
+        .detection-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .detection-class {
+            font-weight: bold;
+            color: #fbbf24;
+        }
+
+        .detection-time {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .detection-bbox {
+            font-size: 14px;
+            color: #d1d5db;
+            margin-bottom: 4px;
+        }
+
+        .detection-confidence {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+
+        .confidence-label {
+            color: #4ade80;
+        }
+
+        .confidence-value {
+            color: white;
+        }
+
+        .algorithm-info {
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            font-size: 12px;
+        }
+
+        .algorithm-title {
+            color: #60a5fa;
+            margin-bottom: 8px;
+        }
+
+        .code-block {
+            color: #86efac;
+            font-family: 'Courier New', monospace;
+            line-height: 1.4;
+        }
+
+        .text-gray-400 { color: #9ca3af; }
+        .text-green-400 { color: #4ade80; }
+        .text-yellow-400 { color: #fbbf24; }
+        .text-red-400 { color: #f87171; }
+        .text-blue-400 { color: #60a5fa; }
+        .text-white { color: white; }
+
+        .scrollable {
+            max-height: 256px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Header Bar -->
+    <div class="header">
+        <div class="header-content">
+            <div class="header-left">
+                    <div class="header-title">
+                        <i data-lucide="camera"></i>
+                        <h1>DETECTION SYSTEM</h1>
+                    </div>
+                <div class="divider"></div>
+                <div class="model-info">
+                    <span class="text-gray-400">MODEL:</span>
+                    <span class="text-green-400">YOLOv8n.pt</span>
+                    <i data-lucide="check-circle" style="width: 16px; height: 16px;"></i>
+                </div>
+            </div>
+            
+            <div class="header-right">
+                <div class="time-display">
+                    <div class="time" id="current-time">00:00:00</div>
+                    <div class="date" id="current-date">Loading...</div>
+                </div>
+                <div class="status-indicator">
+                    <div class="status-dot" id="status-dot"></div>
+                    <span id="status-text">READY</span>
+                </div>
+                <button onclick="goToOptions()" style="background: #374151; color: #fff; border: 1px solid rgba(34, 197, 94, 0.4); padding: 8px 12px; border-radius: 4px; cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 12px;">← BACK TO OPTIONS</button>
+                <form method="post" action="{% url 'logout' %}" style="display: inline; margin-left: 10px;">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-btn" onclick="return confirm('Are you sure you want to logout?')" style="background: #dc2626; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 12px;">
+                        <i data-lucide="log-out" style="width: 14px; height: 14px; margin-right: 4px;"></i>
+                        LOGOUT
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- Left Sidebar - Video Upload & Controls -->
+        <div class="sidebar sidebar-left">
+            <div class="section">
+                <h2 class="section-title">
+                    <i data-lucide="upload"></i>
+                    VIDEO INPUT
+                </h2>
+                
+                <div class="upload-area" onclick="document.getElementById('video-upload').click()">
+                    <input type="file" accept="video/*" id="video-upload" class="upload-input">
+                    <div class="upload-content">
+                        <i data-lucide="upload" style="width: 32px; height: 32px; margin-bottom: 8px;"></i>
+                        <div id="upload-text">Upload Video File</div>
+                        <div class="upload-subtitle">MP4, AVI, MOV supported</div>
+                    </div>
+                </div>
+                
+                <button class="start-btn" id="start-detection-btn" disabled>
+                    <i data-lucide="play" style="width: 16px; height: 16px;"></i>
+                    START DETECTION
+                </button>
+            </div>
+
+            <!-- YOLO Model Info -->
+            <div class="section">
+                <h3 class="section-title">MODEL STATUS</h3>
+                <div class="info-box">
+                    <div class="info-row">
+                        <span class="info-label">Model</span>
+                        <span class="info-value">YOLOv8n</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Status</span>
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <i data-lucide="check-circle" style="width: 12px; height: 12px; color: #4ade80;"></i>
+                            <span class="info-value">LOADED</span>
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Classes</span>
+                        <span class="info-value">80 Objects</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Target</span>
+                        <span class="text-yellow-400">PEOPLE & VEHICLES</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Processing Stats -->
+            <div class="section">
+                <h3 class="section-title">PERFORMANCE</h3>
+                <div class="stat-box">
+                    <div class="stat-label">Processing FPS</div>
+                    <div class="stat-value" id="processing-fps">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Avg Confidence</div>
+                    <div class="stat-value" id="avg-confidence">94.2%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Video Display Area -->
+        <div class="main-content">
+            <div class="video-container">
+                <div class="video-overlay video-overlay-left">
+                    <span id="video-filename">NO VIDEO LOADED</span>
+                </div>
+                
+                <div class="video-overlay video-overlay-right">
+                    <div class="status-dot" id="recording-dot"></div>
+                    <span id="detection-status">STANDBY</span>
+                </div>
+
+                <div class="video-display" id="video-display">
+                    <div class="placeholder" id="video-placeholder">
+                        <i data-lucide="camera" class="placeholder-icon"></i>
+                        <div class="placeholder-title">Upload Video to Start Detection</div>
+                        <div class="placeholder-subtitle">Your YOLO model will process the video frame by frame</div>
+                    </div>
+                    <div class="video-wrapper" style="position: relative; display: none;" id="video-wrapper">
+                        <video id="video-element" class="video-element" controls></video>
+                        <!-- Detection Overlays Container - positioned over video -->
+                        <div id="detection-overlays" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;"></div>
+                    </div>
+                </div>
+
+                <!-- Video Controls -->
+                <div class="video-controls" id="video-controls" style="display: none;">
+                    <button class="control-btn" id="play-btn" onclick="togglePlayPause()"><i data-lucide="play"></i></button>
+                    <button class="control-btn" id="pause-btn" onclick="togglePlayPause()" style="display: none;"><i data-lucide="pause"></i></button>
+                    <button class="control-btn" onclick="stopVideo()"><i data-lucide="square"></i></button>
+                    <button class="control-btn" onclick="restartVideo()"><i data-lucide="rotate-ccw"></i></button>
+                    <button class="control-btn" id="mute-btn" onclick="toggleMute()"><i data-lucide="volume-2"></i></button>
+                    <button class="control-btn" onclick="toggleFullscreen()"><i data-lucide="maximize-2"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Sidebar - Detection Results -->
+        <div class="sidebar sidebar-right">
+            <!-- Detection Stats -->
+            <div class="section">
+                <h3 class="section-title">
+                    <i data-lucide="activity"></i>
+                    DETECTION RESULTS
+                </h3>
+                
+                <div class="stat-box">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="stat-label">TOTAL DETECTIONS</span>
+                        <i data-lucide="users" style="width: 16px; height: 16px;"></i>
+                    </div>
+                    <div class="stat-value" id="total-detections">147</div>
+                </div>
+                
+                <div class="stat-box">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="stat-label">CURRENT FRAME</span>
+                        <i data-lucide="eye" style="width: 16px; height: 16px;"></i>
+                    </div>
+                    <div class="stat-value text-yellow-400" id="current-frame-detections">0</div>
+                </div>
+            </div>
+
+            <!-- Recent Detections -->
+            <div class="section">
+                <h3 class="section-title">
+                    <i data-lucide="alert-triangle" class="text-yellow-400"></i>
+                    RECENT DETECTIONS
+                </h3>
+                
+                <div class="scrollable" id="recent-detections">
+                    <!-- Detection items will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- YOLO Info -->
+            <div class="section">
+                <h3 class="section-title">ALGORITHM INFO</h3>
+                
+                <div class="algorithm-info">
+                    <div class="algorithm-title">Your YOLO Integration:</div>
+                    <div class="code-block">
+                        model = YOLO("yolov8n.pt")<br>
+                        results = model(frame)<br>
+                        annotated = results[0].plot()
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons with error handling
+        function initIcons() {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            } else {
+                console.warn('Lucide not loaded, using fallback icons');
+                // Hide icons if lucide fails to load
+                document.querySelectorAll('[data-lucide]').forEach(el => {
+                    el.style.display = 'none';
+                });
+            }
+        }
+
+        // Wait for lucide to load
+        function waitForLucide(callback) {
+            if (typeof lucide !== 'undefined') {
+                callback();
+            } else {
+                setTimeout(() => waitForLucide(callback), 100);
+            }
+        }
+
+        // State variables
+        let isProcessing = false;
+        let selectedVideo = null;
+        let detections = [];
+        let totalDetections = 0;
+        let processingFPS = 0;
+        let detectionInterval = null;
+        let frameCount = 0;
+
+        // Recent detections list (populated from real detections)
+        let recentDetections = [];
+
+        // DOM elements
+        const videoUpload = document.getElementById('video-upload');
+        const startBtn = document.getElementById('start-detection-btn');
+        const videoElement = document.getElementById('video-element');
+        const videoPlaceholder = document.getElementById('video-placeholder');
+        const videoControls = document.getElementById('video-controls');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const recordingDot = document.getElementById('recording-dot');
+        const detectionStatus = document.getElementById('detection-status');
+        const uploadText = document.getElementById('upload-text');
+        const videoFilename = document.getElementById('video-filename');
+
+        // Update time display
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+            document.getElementById('current-date').textContent = now.toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                year: 'numeric', 
+                month: 'short', 
+                day: '2-digit' 
+            });
+        }
+
+        // Update status indicators
+        function updateStatus() {
+            if (isProcessing) {
+                statusDot.className = 'status-dot status-processing';
+                statusText.textContent = 'PROCESSING';
+                recordingDot.className = 'status-dot status-processing';
+                detectionStatus.textContent = 'DETECTING';
+            } else {
+                statusDot.className = 'status-dot status-ready';
+                statusText.textContent = 'READY';
+                recordingDot.className = 'status-dot';
+                recordingDot.style.backgroundColor = '#4b5563';
+                detectionStatus.textContent = 'STANDBY';
+            }
+        }
+
+        // Handle video upload
+        videoUpload.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                selectedVideo = file;
+                const url = URL.createObjectURL(file);
+                videoElement.src = url;
+                videoElement.style.display = 'block';
+                document.getElementById('video-wrapper').style.display = 'block';
+                videoPlaceholder.style.display = 'none';
+                videoControls.style.display = 'flex';
+                uploadText.textContent = file.name;
+                videoFilename.textContent = file.name;
+                startBtn.disabled = false;
+                
+                // Add video event listeners
+                setupVideoEventListeners();
+            }
+        });
+
+        function setupVideoEventListeners() {
+            // Play event
+            videoElement.addEventListener('play', function() {
+                document.getElementById('play-btn').style.display = 'none';
+                document.getElementById('pause-btn').style.display = 'inline-block';
+            });
+            
+            // Pause event
+            videoElement.addEventListener('pause', function() {
+                document.getElementById('play-btn').style.display = 'inline-block';
+                document.getElementById('pause-btn').style.display = 'none';
+            });
+            
+            // Ended event
+            videoElement.addEventListener('ended', function() {
+                document.getElementById('play-btn').style.display = 'inline-block';
+                document.getElementById('pause-btn').style.display = 'none';
+                // Stop detection when video ends
+                if (isProcessing) {
+                    stopDetection();
+                }
+            });
+            
+            // Volume change event
+            videoElement.addEventListener('volumechange', function() {
+                const muteBtn = document.getElementById('mute-btn');
+                const icon = muteBtn.querySelector('i');
+                
+                if (videoElement.muted) {
+                    icon.setAttribute('data-lucide', 'volume-x');
+                } else {
+                    icon.setAttribute('data-lucide', 'volume-2');
+                }
+                
+                // Re-initialize icons
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            });
+            
+            // Resize event to update overlays
+            window.addEventListener('resize', function() {
+                if (isProcessing) {
+                    updateDetectionOverlays();
+                }
+            });
+        }
+
+        // Start detection
+        startBtn.addEventListener('click', function() {
+            if (!selectedVideo) {
+                alert('Please upload a video first');
+                return;
+            }
+            
+            if (isProcessing) return;
+            
+            isProcessing = true;
+            updateStatus();
+            updateStartButton();
+            
+            // Auto-play video when detection starts
+            if (videoElement.paused) {
+                videoElement.play();
+            }
+            
+            // Add test overlays first to verify positioning
+            addTestOverlays();
+            
+            // Start detection process
+            startDetectionLoop();
+        });
+
+        function updateStartButton() {
+            if (isProcessing) {
+                startBtn.innerHTML = '<div class="spinner"></div> PROCESSING...';
+                startBtn.disabled = true;
+            } else {
+                startBtn.innerHTML = '<span style="width: 16px; height: 16px; display: inline-block;">▶</span> START DETECTION';
+                startBtn.disabled = !selectedVideo;
+                initIcons();
+            }
+        }
+
+        // Main detection loop: periodically send frames to the backend while video is playing
+        function startDetectionLoop() {
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+            }
+            frameCount = 0;
+            detectionInterval = setInterval(() => {
+                // Only process while video is playing and we are in processing state
+                if (!isProcessing || !selectedVideo || videoElement.videoWidth === 0 || videoElement.paused) {
+                    return;
+                }
+                
+                frameCount++;
+                processVideoFrameWithYOLO();
+            }, 1000); // process roughly once per second to reduce load
+        }
+
+        async function processVideoFrameWithYOLO() {
+            try {
+                // Capture current video frame
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                // Downscale the frame before sending to the server to speed up processing
+                const scaleFactor = 0.5; // 50% of original size
+                canvas.width = Math.max(1, Math.floor(videoElement.videoWidth * scaleFactor));
+                canvas.height = Math.max(1, Math.floor(videoElement.videoHeight * scaleFactor));
+
+                ctx.drawImage(videoElement, 0, 0);
+                
+                // Convert to base64
+                const frameData = canvas.toDataURL('image/jpeg').split(',')[1];
+                
+                // Send to YOLO API
+                const response = await fetch('/api/process-frame/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        frame_data: frameData
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateDetectionResults(result.detections || []);
+                } else {
+                    console.error('YOLO processing error:', result.error);
+                }
+            } catch (error) {
+                console.error('Error processing frame with YOLO:', error);
+            }
+        }
+
+        function updateDetectionResults(newDetections) {
+            // Store detections globally so overlays can use them
+            detections = newDetections || [];
+            
+            // Update current frame detections
+            document.getElementById('current-frame-detections').textContent = detections.length;
+            
+            // Update total detections
+            totalDetections += detections.length;
+            document.getElementById('total-detections').textContent = totalDetections;
+            
+            // Update processing FPS
+            // Approximate processing FPS based on detection loop interval
+            processingFPS = 5;
+            document.getElementById('processing-fps').textContent = processingFPS;
+            
+            // Add to recent detections
+            if (detections.length > 0) {
+                    const newDetection = {
+                    id: Date.now(),
+                    time: new Date().toLocaleTimeString('en-US', { hour12: false }),
+                    confidence: detections[0].confidence,
+                    bbox: detections[0].bbox,
+                    class: detections[0].class_name || detections[0].class || "person"
+                };
+                
+                recentDetections.unshift(newDetection);
+                recentDetections = recentDetections.slice(0, 5);
+                updateRecentDetections();
+            }
+            
+            // Update detection overlays
+            updateDetectionOverlays();
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Video Control Functions
+        function togglePlayPause() {
+            if (!videoElement) return;
+            
+            if (videoElement.paused) {
+                videoElement.play();
+                document.getElementById('play-btn').style.display = 'none';
+                document.getElementById('pause-btn').style.display = 'inline-block';
+            } else {
+                videoElement.pause();
+                document.getElementById('play-btn').style.display = 'inline-block';
+                document.getElementById('pause-btn').style.display = 'none';
+            }
+        }
+
+        function stopVideo() {
+            if (!videoElement) return;
+            
+            videoElement.pause();
+            videoElement.currentTime = 0;
+            document.getElementById('play-btn').style.display = 'inline-block';
+            document.getElementById('pause-btn').style.display = 'none';
+            
+            // Stop detection if running
+            if (isProcessing) {
+                stopDetection();
+            }
+        }
+
+        function restartVideo() {
+            if (!videoElement) return;
+            
+            videoElement.currentTime = 0;
+            if (!videoElement.paused) {
+                videoElement.play();
+            }
+        }
+
+        function toggleMute() {
+            if (!videoElement) return;
+            
+            videoElement.muted = !videoElement.muted;
+            const muteBtn = document.getElementById('mute-btn');
+            const icon = muteBtn.querySelector('i');
+            
+            if (videoElement.muted) {
+                icon.setAttribute('data-lucide', 'volume-x');
+            } else {
+                icon.setAttribute('data-lucide', 'volume-2');
+            }
+            
+            // Re-initialize icons
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }
+
+        function toggleFullscreen() {
+            if (!videoElement) return;
+            
+            const videoContainer = document.querySelector('.video-container');
+            
+            if (!document.fullscreenElement) {
+                videoContainer.requestFullscreen().catch(err => {
+                    console.log('Error attempting to enable fullscreen:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        function stopDetection() {
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+                detectionInterval = null;
+            }
+            isProcessing = false;
+            updateStatus();
+            updateStartButton();
+        }
+
+        function updateRecentDetections() {
+            const container = document.getElementById('recent-detections');
+            container.innerHTML = '';
+            
+            recentDetections.forEach(detection => {
+                const detectionElement = document.createElement('div');
+                detectionElement.className = 'detection-item';
+                detectionElement.innerHTML = `
+                    <div class="detection-header">
+                        <span class="detection-class">${detection.class.toUpperCase()}</span>
+                        <span class="detection-time">${detection.time}</span>
+                    </div>
+                    <div class="detection-bbox">
+                        Bbox: [${detection.bbox.join(', ')}]
+                    </div>
+                    <div class="detection-confidence">
+                        <span class="confidence-label">CONFIDENCE</span>
+                        <span class="confidence-value">${Math.floor(detection.confidence * 100)}%</span>
+                    </div>
+                `;
+                container.appendChild(detectionElement);
+            });
+        }
+
+        function updateDetectionOverlays() {
+            const overlaysContainer = document.getElementById('detection-overlays');
+            if (!overlaysContainer) {
+                console.error('Detection overlays container not found');
+                return;
+            }
+            
+            overlaysContainer.innerHTML = '';
+            
+            if (!isProcessing) {
+                console.log('Not processing, skipping overlays');
+                return;
+            }
+            
+            if (!videoElement || videoElement.videoWidth === 0) {
+                console.log('Video not ready, skipping overlays');
+                return;
+            }
+            
+            console.log('Updating detection overlays, detections:', detections.length);
+            
+            // Get video dimensions
+            const videoRect = videoElement.getBoundingClientRect();
+            const videoWidth = videoElement.videoWidth;
+            const videoHeight = videoElement.videoHeight;
+            const displayWidth = videoRect.width;
+            const displayHeight = videoRect.height;
+            
+            console.log('Video dimensions:', { videoWidth, videoHeight, displayWidth, displayHeight });
+            
+            // Calculate scale factors
+            const scaleX = displayWidth / videoWidth;
+            const scaleY = displayHeight / videoHeight;
+            
+            console.log('Scale factors:', { scaleX, scaleY });
+            
+            detections.forEach((detection, index) => {
+                console.log('Processing detection:', detection);
+                
+                const overlay = document.createElement('div');
+                overlay.className = 'detection-box';
+                
+                // Scale bounding box coordinates to match video display size
+                const scaledX = detection.bbox[0] * scaleX;
+                const scaledY = detection.bbox[1] * scaleY;
+                const scaledWidth = detection.bbox[2] * scaleX;
+                const scaledHeight = detection.bbox[3] * scaleY;
+                
+                console.log('Scaled coordinates:', { scaledX, scaledY, scaledWidth, scaledHeight });
+                
+                // Set basic positioning
+                overlay.style.position = 'absolute';
+                overlay.style.left = `${scaledX}px`;
+                overlay.style.top = `${scaledY}px`;
+                overlay.style.width = `${scaledWidth}px`;
+                overlay.style.height = `${scaledHeight}px`;
+                overlay.style.border = '3px solid';
+                overlay.style.pointerEvents = 'none';
+                overlay.style.zIndex = '100';
+                overlay.style.boxSizing = 'border-box';
+                
+                // Set different colors for different object types
+                const objectType = detection.class_name || detection.class || 'person';
+                const colors = {
+                    'person': '#ef4444',      // Red for people
+                    'car': '#3b82f6',         // Blue for cars
+                    'truck': '#8b5cf6',       // Purple for trucks
+                    'bus': '#f59e0b',         // Orange for buses
+                    'motorcycle': '#10b981',  // Green for motorcycles
+                    'bicycle': '#06b6d4',     // Cyan for bicycles
+                    'boat': '#6366f1',        // Indigo for boats
+                    'airplane': '#ec4899',    // Pink for airplanes
+                    'train': '#84cc16'        // Lime for trains
+                };
+                
+                const color = colors[objectType] || '#ef4444';
+                overlay.style.borderColor = color;
+                overlay.style.backgroundColor = color + '30'; // Add more transparency
+                
+                // Create label
+                const label = document.createElement('div');
+                label.className = 'detection-label';
+                label.style.position = 'absolute';
+                label.style.top = '-30px';
+                label.style.left = '0px';
+                label.style.backgroundColor = color;
+                label.style.color = 'white';
+                label.style.padding = '4px 8px';
+                label.style.fontSize = '12px';
+                label.style.fontWeight = 'bold';
+                label.style.borderRadius = '4px';
+                label.style.pointerEvents = 'none';
+                label.style.zIndex = '101';
+                label.style.whiteSpace = 'nowrap';
+                label.textContent = `${objectType.toUpperCase()} ${Math.floor(detection.confidence * 100)}%`;
+                
+                overlay.appendChild(label);
+                overlaysContainer.appendChild(overlay);
+                
+                console.log('Added overlay to container');
+            });
+            
+            console.log('Total overlays added:', overlaysContainer.children.length);
+        }
+
+        // Initialize the dashboard
+        function init() {
+            updateTime();
+            updateStatus();
+            updateRecentDetections();
+            updateStartButton();
+            
+            // Update time every second
+            setInterval(updateTime, 1000);
+        }
+
+        // Start the dashboard when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            waitForLucide(function() {
+                initIcons();
+                init();
+                
+                // Re-initialize icons periodically
+                setInterval(initIcons, 2000);
+            });
+        });
+
+        // Back to Options navigation (same as 2FA page behavior)
+        function goToOptions() {
+            window.location.href = "{% url 'options' %}";
+        }
+    </script>
+</body>
+</html>

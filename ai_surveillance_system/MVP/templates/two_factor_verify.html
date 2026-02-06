@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Two-Factor Authentication - Surveillance System</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: #0a0e1a;
+            color: #00ff88;
+            overflow: hidden;
+            height: 100vh;
+            position: relative;
+        }
+        
+        /* Animated background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+            z-index: -2;
+        }
+        
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        
+        .window {
+            background: rgba(15, 25, 45, 0.95);
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            width: 500px;
+            min-height: 400px;
+            box-shadow: 
+                0 0 30px rgba(0, 255, 136, 0.3),
+                inset 0 0 20px rgba(0, 255, 136, 0.1);
+            backdrop-filter: blur(15px);
+            animation: windowGlow 3s ease-in-out infinite alternate;
+        }
+        
+        @keyframes windowGlow {
+            0% { box-shadow: 0 0 30px rgba(0, 255, 136, 0.3), inset 0 0 20px rgba(0, 255, 136, 0.1); }
+            100% { box-shadow: 0 0 50px rgba(0, 255, 136, 0.5), inset 0 0 30px rgba(0, 255, 136, 0.15); }
+        }
+        
+        .window-header {
+            background: rgba(0, 255, 136, 0.1);
+            padding: 15px 20px;
+            border-bottom: 1px solid #00ff88;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .window-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #00ff88;
+        }
+        
+        .window-content {
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .verify-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px #00ff88;
+            letter-spacing: 2px;
+        }
+        
+        .verify-subtitle {
+            font-size: 14px;
+            margin-bottom: 30px;
+            opacity: 0.8;
+        }
+        
+        .auth-icon {
+            width: 80px;
+            height: 60px;
+            border: 3px solid #00ff88;
+            border-radius: 8px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            animation: scanLine 2s linear infinite;
+        }
+        
+        @keyframes scanLine {
+            0% { box-shadow: inset 0 0 0 0 rgba(0, 255, 136, 0.3); }
+            50% { box-shadow: inset 0 -30px 0 0 rgba(0, 255, 136, 0.1); }
+            100% { box-shadow: inset 0 0 0 0 rgba(0, 255, 136, 0.3); }
+        }
+        
+        .auth-icon::before {
+            content: "🔐";
+            font-size: 24px;
+            color: #00ff88;
+        }
+        
+        .input-group {
+            margin: 20px 0;
+            text-align: left;
+        }
+        
+        .input-label {
+            font-size: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.9;
+        }
+        
+        .input-label::before {
+            content: "🔐";
+            font-size: 14px;
+        }
+        
+        input {
+            width: 100%;
+            background: rgba(0, 20, 40, 0.8);
+            border: 1px solid #00ff88;
+            border-radius: 4px;
+            padding: 12px;
+            color: #00ff88;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #00ffaa;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+            background: rgba(0, 30, 50, 0.9);
+        }
+        
+        .verify-button {
+            width: 100%;
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            border: none;
+            border-radius: 6px;
+            padding: 15px;
+            color: #0a0e1a;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .verify-button:hover {
+            background: linear-gradient(45deg, #00ffaa, #00ff88);
+            box-shadow: 0 0 25px rgba(0, 255, 136, 0.6);
+            transform: translateY(-2px);
+        }
+        
+        .backup-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(0, 255, 136, 0.3);
+        }
+        
+        .backup-title {
+            font-size: 12px;
+            color: #ffaa00;
+            margin-bottom: 10px;
+        }
+        
+        .backup-input {
+            background: rgba(255, 165, 0, 0.1);
+            border: 1px solid #ffaa00;
+        }
+        
+        .backup-input:focus {
+            border-color: #ffcc00;
+            box-shadow: 0 0 15px rgba(255, 170, 0, 0.4);
+        }
+        
+        .warning {
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid #ff4444;
+            color: #ff4444;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 10px;
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .warning::before {
+            content: "⚠";
+            color: #ff4444;
+        }
+        
+        .messages {
+            margin-bottom: 20px;
+        }
+        
+        .alert {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+        
+        .alert-error {
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid #ff4444;
+            color: #ff4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="window">
+            <div class="window-header">
+                <div class="window-title">🔐 TWO-FACTOR AUTHENTICATION</div>
+            </div>
+            
+            <div class="window-content">
+                <div class="auth-icon"></div>
+                
+                <div class="verify-title">VERIFY IDENTITY</div>
+                <div class="verify-subtitle">Enter your 6-digit authentication code</div>
+                
+                {% if messages %}
+                    <div class="messages">
+                        {% for message in messages %}
+                        <div class="alert alert-error">
+                            ⚠ {{ message }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="input-group">
+                        <div class="input-label">🔐 AUTHENTICATION CODE</div>
+                        <input type="text" name="token" placeholder="123456" maxlength="6" pattern="[0-9]{6}" required>
+                    </div>
+                    
+                    <button type="submit" class="verify-button">VERIFY & CONTINUE</button>
+                </form>
+                
+                <div class="backup-section">
+                    <div class="backup-title">OR USE BACKUP CODE</div>
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="input-group">
+                            <div class="input-label">🔑 BACKUP CODE</div>
+                            <input type="text" name="backup_code" placeholder="XXXXXXXX" class="backup-input" maxlength="8">
+                        </div>
+                        
+                        <button type="submit" class="verify-button" style="background: linear-gradient(45deg, #ffaa00, #ff8800);">USE BACKUP CODE</button>
+                    </form>
+                </div>
+                
+                <div class="warning">
+                    ⚠ Enter the 6-digit code from your authenticator app or use a backup code
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auto-format token input
+        document.querySelector('input[name="token"]').addEventListener('input', function(e) {
+            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+        });
+        
+        // Auto-format backup code input
+        document.querySelector('input[name="backup_code"]').addEventListener('input', function(e) {
+            e.target.value = e.target.value.replace(/[^A-Z0-9]/g, '').toUpperCase();
+        });
+        
+        // Auto-focus on token input
+        document.querySelector('input[name="token"]').focus();
+    </script>
+</body>
+</html>

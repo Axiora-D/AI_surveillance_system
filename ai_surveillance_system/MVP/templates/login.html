@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCTV Terminal - Surveillance Net</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: #0a0e1a;
+            color: #00ff88;
+            overflow: hidden;
+            height: 100vh;
+            position: relative;
+        }
+        
+        /* Animated background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+            z-index: -2;
+        }
+        
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+        
+        /* Noise overlay */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
+            z-index: -1;
+            animation: noise 0.2s infinite;
+        }
+        
+
+
+
+        @keyframes noise {
+            0%, 100% { opacity: 0.02; }
+            50% { opacity: 0.04; }
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+            position: relative;
+        }
+        
+        .sidebar {
+            width: 300px;
+            background: rgba(6, 20, 35, 0.9);
+            border-right: 2px solid #00ff88;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(10px);
+        }
+        
+        .system-status {
+            color: #00ff88;
+            font-size: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .status-line {
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px #00ff88;
+        }
+        
+        .terminal-window {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        
+        .window {
+            background: rgba(15, 25, 45, 0.95);
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            width: 450px;
+            min-height: 500px;
+            box-shadow: 
+                0 0 30px rgba(0, 255, 136, 0.3),
+                inset 0 0 20px rgba(0, 255, 136, 0.1);
+            backdrop-filter: blur(15px);
+            animation: windowGlow 3s ease-in-out infinite alternate;
+        }
+        
+        @keyframes windowGlow {
+            0% { box-shadow: 0 0 30px rgba(0, 255, 136, 0.3), inset 0 0 20px rgba(0, 255, 136, 0.1); }
+            100% { box-shadow: 0 0 50px rgba(0, 255, 136, 0.5), inset 0 0 30px rgba(0, 255, 136, 0.15); }
+        }
+        
+        .window-header {
+            background: rgba(0, 255, 136, 0.1);
+            padding: 10px 15px;
+            border-bottom: 1px solid #00ff88;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .window-controls {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .control-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        .control-dot.red { background: #ff4444; }
+        .control-dot.yellow { background: #ffaa00; }
+        .control-dot.green { background: #00ff88; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+        
+        .window-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #00ff88;
+        }
+        
+        .window-content {
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .camera-icon {
+            width: 80px;
+            height: 60px;
+            border: 3px solid #00ff88;
+            border-radius: 8px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            animation: scanLine 2s linear infinite;
+        }
+        
+        @keyframes scanLine {
+            0% { box-shadow: inset 0 0 0 0 rgba(0, 255, 136, 0.3); }
+            50% { box-shadow: inset 0 -30px 0 0 rgba(0, 255, 136, 0.1); }
+            100% { box-shadow: inset 0 0 0 0 rgba(0, 255, 136, 0.3); }
+        }
+        
+        .camera-icon::before {
+            content: "📹";
+            font-size: 24px;
+            color: #00ff88;
+        }
+        
+        .system-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px #00ff88;
+            letter-spacing: 2px;
+        }
+        
+        .subtitle {
+            font-size: 14px;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+        
+        .access-level {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid #00ff88;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 11px;
+            margin: 20px auto;
+            width: fit-content;
+            letter-spacing: 1px;
+        }
+        
+        .auth-section {
+            margin: 30px 0;
+            text-align: left;
+        }
+        
+        .auth-title {
+            font-size: 12px;
+            margin-bottom: 20px;
+            color: #ffaa00;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .auth-title::before {
+            content: "⚠";
+            color: #ffaa00;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-label {
+            font-size: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.9;
+        }
+        
+        .input-label::before {
+            content: "👤";
+            font-size: 14px;
+        }
+        
+        .security-label::before {
+            content: "🔒";
+        }
+        
+        input {
+            width: 100%;
+            background: rgba(0, 20, 40, 0.8);
+            border: 1px solid #00ff88;
+            border-radius: 4px;
+            padding: 12px;
+            color: #00ff88;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #00ffaa;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+            background: rgba(0, 30, 50, 0.9);
+        }
+        
+        input::placeholder {
+            color: rgba(0, 255, 136, 0.5);
+        }
+        
+        .access-button {
+            width: 100%;
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            border: none;
+            border-radius: 6px;
+            padding: 15px;
+            color: #0a0e1a;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            margin: 30px 0;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .access-button:hover {
+            background: linear-gradient(45deg, #00ffaa, #00ff88);
+            box-shadow: 0 0 25px rgba(0, 255, 136, 0.6);
+            transform: translateY(-2px);
+        }
+        
+        .system-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 11px;
+        }
+        
+        .info-item {
+            text-align: center;
+        }
+        
+        .info-value {
+            font-weight: 700;
+            color: #00ffaa;
+            text-shadow: 0 0 10px #00ffaa;
+        }
+        
+        .warning {
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid #ff4444;
+            color: #ff4444;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 10px;
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .warning::before {
+            content: "⚠";
+            color: #ff4444;
+        }
+        
+        .secure-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid #00ff88;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            animation: secureGlow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes secureGlow {
+            0% { box-shadow: 0 0 10px rgba(0, 255, 136, 0.3); }
+            100% { box-shadow: 0 0 20px rgba(0, 255, 136, 0.6); }
+        }
+        
+        .secure-indicator::before {
+            content: "🔒";
+            color: #00ff88;
+        }
+        
+        /* Typing animation for password field */
+        .password-dots {
+            animation: typing 1.5s steps(10) infinite;
+        }
+        
+        @keyframes typing {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+                border-right: none;
+                border-bottom: 2px solid #00ff88;
+            }
+            
+            .window {
+                width: 90%;
+                margin: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="secure-indicator">
+        SECURE
+        <span style="color: #00ff88;">Aug 25, 2025</span>
+        <span style="color: #00ff88;">20:20:10</span>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="system-status">
+                <div class="status-line">● SYSTEM ONLINE</div>
+                <div class="status-line">CN.NET v2.4.1</div>
+            </div>
+        </div>
+        
+        <div class="terminal-window">
+            <div class="window">
+                <div class="window-header">
+                    <div class="window-controls">
+                        <div class="control-dot red"></div>
+                        <div class="control-dot yellow"></div>
+                        <div class="control-dot green"></div>
+                    </div>
+                    <div class="window-title">CCTV_TERMINAL</div>
+                    <div style="color: #00ff88; font-size: 12px;">SURVEILLANCE_NET</div>
+                </div>
+                
+                <div class="window-content">
+                    <div class="camera-icon"></div>
+                    
+                    <div class="system-title">AI SURVEILLANCE SYSTEM</div>
+                    <div class="access-level">○ CLASSIFIED ACCESS ○</div>
+                     <div class="auth-section">
+                        <div class="auth-title">OPERATOR AUTHENTICATION REQUIRED</div>
+                        
+                        {% if messages %}
+                            {% for message in messages %}
+                            <div class="warning" style="margin-bottom: 20px;">
+                                ⚠ {{ message }}
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                        
+                        <form method="post" action="{% url 'login' %}">
+                            {% csrf_token %}
+                            <div class="input-group">
+                                <div class="input-label"> OPERATOR ID</div>
+                                <input type="text" name="username" placeholder="ENTER OPERATOR ID" required>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label security-label">SECURITY CODE</div>
+                                <input type="password" name="password" placeholder="••••••••••" class="password-dots" required>
+                            </div>
+                            
+                            <button type="submit" class="access-button">ACCESS SURVEILLANCE NETWORK</button>
+                        </form>
+                    </div>
+                    
+                    <div class="system-info">
+                        <div class="info-item">
+                            <div>ACTIVE CAMERAS</div>
+                            <div class="info-value">24/24</div>
+                        </div>
+                        <div class="info-item">
+                            <div>DETECTION STATUS</div>
+                            <div class="info-value">READY</div>
+                        </div>
+                        <div class="info-item">
+                            <div>SYSTEM LOAD</div>
+                            <div class="info-value">32%</div>
+                        </div>
+                        <div class="info-item">
+                            <div>UPTIME</div>
+                            <div class="info-value">99.9%</div>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #88ffaa;">
+                        Don't have an account? <a href="{% url 'home' %}" style="color: #00ff88; text-decoration: none; font-weight: 700;">CREATE ACCOUNT</a>
+                    </div>
+                    
+                    <div class="warning">
+                        ⚠ UNAUTHORIZED ACCESS PROHIBITED - ALL SESSIONS LOGGED
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Real-time clock update
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { 
+                hour12: false, 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+            });
+            const dateString = now.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: '2-digit', 
+                year: 'numeric' 
+            });
+            
+            const indicator = document.querySelector('.secure-indicator');
+            indicator.innerHTML = `🔒 SECURE <span style="color: #00ff88;">${dateString}</span> <span style="color: #00ff88;">${timeString}</span>`;
+        }
+        
+        // Update clock every second
+        setInterval(updateClock, 1000);
+        updateClock();
+        
+        // Add enter key support for form submission
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.querySelector('form').submit();
+            }
+        });
+        
+        // Simulate system load fluctuation
+        setInterval(() => {
+            const loadElement = document.querySelector('.system-info .info-item:nth-child(3) .info-value');
+            const randomLoad = Math.floor(Math.random() * 40) + 20;
+            loadElement.textContent = randomLoad + '%';
+        }, 3000);
+        
+        // Add glitch effect occasionally
+        setInterval(() => {
+            if (Math.random() < 0.1) {
+                document.body.style.filter = 'hue-rotate(10deg) contrast(1.2)';
+                setTimeout(() => {
+                    document.body.style.filter = 'none';
+                }, 100);
+            }
+        }, 5000);
+    </script>
+</body>
+</html>

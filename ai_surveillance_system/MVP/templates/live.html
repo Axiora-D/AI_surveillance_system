@@ -1,0 +1,2217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Human Detection System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a1520;
+            color: #00ff88;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow: hidden;
+        }
+
+        .header {
+            background: #1a2530;
+            border-bottom: 1px solid #00ff88;
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .system-icon {
+            width: 12px;
+            height: 12px;
+            background: #00ff88;
+            border-radius: 50%;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .time {
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #00ff88;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-container {
+            display: flex;
+            height: calc(100vh - 40px);
+        }
+
+        .sidebar {
+            width: 200px;
+            background: #0f1a25;
+            border-right: 1px solid #00ff88;
+            padding: 16px 8px;
+        }
+
+        .sidebar-section {
+            margin-bottom: 20px;
+        }
+
+        .sidebar-title {
+            color: #00ff88;
+            font-weight: bold;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        .camera-item {
+            background: #1a2530;
+            border: 1px solid #00ff88;
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .camera-item:hover {
+            background: #2a3540;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+        }
+
+        .camera-item.active {
+            background: #2a3540;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.5);
+        }
+
+        .camera-name {
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .camera-info {
+            font-size: 10px;
+            color: #88ffaa;
+        }
+
+        .status-offline {
+            color: #ff4444;
+        }
+
+        .camera-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 2px;
+            padding: 2px;
+            background: #0a1520;
+        }
+
+        .camera-feed {
+            background: #000;
+            border: 2px solid #00ff88;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* Fullscreen / focused camera styles */
+        .camera-grid.single-view {
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr;
+        }
+
+        .camera-feed.hidden {
+            display: none;
+        }
+
+        .camera-feed.active {
+            border-color: #ffff00;
+            box-shadow: 0 0 20px rgba(255, 255, 0, 0.3);
+        }
+
+        .camera-label {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            color: #00ff88;
+        }
+
+        .detection-overlay {
+            position: absolute;
+            border: 2px solid #ff4444;
+            background: rgba(255, 68, 68, 0.1);
+        }
+
+        .detection-1 { top: 60px; left: 40px; width: 80px; height: 120px; }
+        .detection-2 { top: 180px; left: 200px; width: 60px; height: 100px; }
+        .detection-3 { bottom: 80px; right: 60px; width: 70px; height: 110px; }
+
+        .camera-icon {
+            color: #00ff88;
+            font-size: 48px;
+            opacity: 0.3;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            animation: cameraFloat 3s ease-in-out infinite;
+        }
+
+        .camera-feed:hover .camera-icon {
+            opacity: 0.8;
+            transform: translateY(-5px) scale(1.05);
+        }
+
+        @keyframes cameraFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+
+        .no-signal {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .right-panel {
+            width: 220px;
+            background: #0f1a25;
+            border-left: 1px solid #00ff88;
+            padding: 16px;
+        }
+
+        .panel-section {
+            margin-bottom: 20px;
+            background: #1a2530;
+            border: 1px solid #00ff88;
+            border-radius: 3px;
+            padding: 12px;
+        }
+
+        .panel-title {
+            color: #00ff88;
+            font-weight: bold;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 11px;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #ffff00;
+        }
+
+        .detection-list {
+            max-height: 300px;
+            overflow-y: auto;
+            min-height: 100px;
+        }
+
+        .detection-item {
+            background: #2a3540;
+            border: 1px solid #ff4444;
+            margin-bottom: 6px;
+            padding: 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .detection-time {
+            color: #88ffaa;
+            margin-bottom: 2px;
+        }
+
+        .detection-desc {
+            color: #ffffff;
+        }
+
+        .action-button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 8px;
+            border: none;
+            border-radius: 3px;
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #00ff88;
+            color: #000;
+        }
+
+        .btn-warning {
+            background: #ffaa00;
+            color: #000;
+        }
+
+        .btn-info {
+            background: #0088ff;
+            color: #fff;
+        }
+
+        .btn-primary:hover { background: #00cc66; }
+        .btn-warning:hover { background: #cc8800; }
+        .btn-info:hover { background: #0066cc; }
+
+        .progress-bar {
+            background: #333;
+            height: 4px;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: #00ff88;
+            height: 100%;
+            transition: width 0.3s;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1a2530; }
+        ::-webkit-scrollbar-thumb { 
+            background: #00ff88; 
+            border-radius: 3px; 
+        }
+
+        .control-buttons {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+
+        .control-btn {
+            width: 30px;
+            height: 30px;
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid #00ff88;
+            border-radius: 50%;
+            color: #00ff88;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .control-btn:hover {
+            background: rgba(0, 255, 136, 0.4);
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        /* Playback Modal Styles */
+        .playback-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .playback-modal-content {
+            background: #1a2530;
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .playback-header {
+            background: #0f1a25;
+            padding: 15px 20px;
+            border-bottom: 1px solid #00ff88;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .playback-header h3 {
+            color: #00ff88;
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #00ff88;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-btn:hover {
+            background: rgba(0, 255, 136, 0.2);
+            border-radius: 50%;
+        }
+
+        .playback-body {
+            padding: 20px;
+        }
+
+        .upload-area {
+            border: 2px dashed #00ff88;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(0, 255, 136, 0.05);
+        }
+
+        .upload-area:hover {
+            background: rgba(0, 255, 136, 0.1);
+            border-color: #00ffaa;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            color: #00ff88;
+            font-size: 14px;
+        }
+
+        .video-container-playback {
+            position: relative;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .playback-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .playback-btn {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .playback-btn:hover {
+            background: #00cc66;
+            transform: translateY(-2px);
+        }
+
+        .playback-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            background: #0f1a25;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #00ff88;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+
+        .info-item span:first-child {
+            color: #88ffaa;
+        }
+
+        .info-item span:last-child {
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        /* Report Panel Styles */
+        .report-panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            background: rgba(15, 26, 37, 0.95);
+            border-left: 2px solid #00ff88;
+            backdrop-filter: blur(15px);
+            transition: right 0.3s ease;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .report-panel.open {
+            right: 0;
+        }
+
+        .report-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #00ff88;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1a2530;
+        }
+
+        .report-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #00ff88;
+            text-transform: uppercase;
+        }
+
+        .close-report {
+            background: none;
+            border: none;
+            color: #00ff88;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .report-content {
+            padding: 20px;
+        }
+
+        .report-section {
+            margin-bottom: 25px;
+        }
+
+        .report-section-title {
+            font-size: 12px;
+            font-weight: bold;
+            color: #00ff88;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .detection-item-report {
+            background: #1a2530;
+            border: 1px solid #00ff88;
+            border-radius: 3px;
+            padding: 10px;
+            margin-bottom: 8px;
+            font-size: 11px;
+        }
+
+        .detection-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .detection-class {
+            color: #00ff88;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .detection-time {
+            color: #88ffaa;
+            font-size: 10px;
+        }
+
+        .detection-confidence {
+            color: #ffff00;
+            font-weight: bold;
+        }
+
+        .detection-bbox {
+            color: #666;
+            font-size: 9px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .stat-card {
+            background: #1a2530;
+            border: 1px solid #00ff88;
+            border-radius: 3px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #00ff88;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 9px;
+            color: #88ffaa;
+            text-transform: uppercase;
+        }
+
+        .class-breakdown {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .class-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            background: #1a2530;
+            border: 1px solid #00ff88;
+            border-radius: 3px;
+        }
+
+        .class-name {
+            color: #00ff88;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 10px;
+        }
+
+        .class-count {
+            color: #88ffaa;
+            font-size: 10px;
+        }
+
+        .report-toggle {
+            position: fixed;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            background: rgba(0, 255, 136, 0.9);
+            color: #0a1520;
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1001;
+            transition: all 0.3s ease;
+        }
+
+        .report-toggle:hover {
+            background: #00ff88;
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .total-objects-display {
+            background: rgba(0, 255, 136, 0.1);
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .total-objects-label {
+            color: #00ff88;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .total-objects-count {
+            color: #ffff00;
+            font-size: 32px;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255, 255, 0, 0.8);
+        }
+
+        .object-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .object-summary-item {
+            background: #1a2530;
+            border: 1px solid #00ff88;
+            border-radius: 6px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .object-summary-item:hover {
+            background: #2a3540;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+        }
+
+        .object-icon {
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 255, 136, 0.1);
+            border-radius: 50%;
+            border: 1px solid #00ff88;
+        }
+
+        .object-details {
+            flex: 1;
+        }
+
+        .object-name {
+            color: #00ff88;
+            font-weight: bold;
+            font-size: 11px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .object-count {
+            color: #ffff00;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <div class="system-icon"></div>
+            <span>HUMAN DETECTION SYSTEM</span>
+            <span style="margin-left: 20px; color: #666;">OPERATOR: ADMIN_02</span>
+        </div>
+        <div class="header-right">
+            <div class="time" id="currentTime">20:29:13</div>
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span>SYSTEM ACTIVE</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">📹 Camera Network</div>
+                <div style="font-size: 10px; margin-bottom: 10px; color: #666;">7/8 ONLINE</div>
+                
+                <div class="camera-item active" onclick="selectCamera('cam-01')">
+                    <div class="camera-name">CAM-01</div>
+                    <div class="camera-info">Main Entrance<br>▶️ Live</div>
+                </div>
+                
+                <div class="camera-item" onclick="selectCamera('cam-02')">
+                    <div class="camera-name">CAM-02</div>
+                    <div class="camera-info">Lobby Area<br>⏸️ OFFLINE</div>
+                </div>
+                
+                <div class="camera-item" onclick="selectCamera('cam-03')">
+                    <div class="camera-name">CAM-03</div>
+                    <div class="camera-info">Corridor 3<br>⚠️ ALERT</div>
+                </div>
+                
+                <div class="camera-item" onclick="selectCamera('cam-04')">
+                    <div class="camera-name">CAM-04</div>
+                    <div class="camera-info">Fire Staircase<br>▶️ Live</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="camera-grid">
+            <div class="camera-feed active" id="feed-1" ondblclick="openCameraFullscreen(1)">
+                <div class="camera-label">CAM-01</div>
+                <video id="video1" autoplay muted style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
+                <canvas id="canvas1" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
+                <div class="detection-overlay detection-1"></div>
+                <div class="camera-icon" id="icon1">📷</div>
+                <div class="no-signal" id="no-signal1" style="display: none;">NO SIGNAL</div>
+            </div>
+            
+            <div class="camera-feed" id="feed-2" ondblclick="openCameraFullscreen(2)">
+                <div class="camera-label">CAM-02</div>
+                <video id="video2" autoplay muted style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
+                <canvas id="canvas2" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
+                <div class="detection-overlay detection-2"></div>
+                <div class="camera-icon" id="icon2">📷</div>
+                <div class="no-signal" id="no-signal2">NO SIGNAL</div>
+            </div>
+            
+            <div class="camera-feed" id="feed-3" ondblclick="openCameraFullscreen(3)">
+                <div class="camera-label">CAM-03</div>
+                <video id="video3" autoplay muted style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
+                <canvas id="canvas3" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
+                <div class="detection-overlay detection-3"></div>
+                <div class="camera-icon" id="icon3">📷</div>
+                <div class="no-signal" id="no-signal3">NO SIGNAL</div>
+            </div>
+            
+            <div class="camera-feed" id="feed-4" ondblclick="openCameraFullscreen(4)">
+                <div class="camera-label">CAM-04</div>
+                <video id="video4" autoplay muted style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
+                <canvas id="canvas4" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
+                <div class="detection-overlay detection-4"></div>
+                <div class="camera-icon" id="icon4">📷</div>
+                <div class="no-signal" id="no-signal4">NO SIGNAL</div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="panel-section">
+                <div class="panel-title">📊 System Status</div>
+                <div class="stat-item">
+                    <span>TOTAL DETECTIONS</span>
+                    <span class="stat-value" id="totalDetections">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>ACTIVE CAMERAS</span>
+                    <span class="stat-value">7/8</span>
+                </div>
+                <div class="stat-item">
+                    <span>MODEL</span>
+                    <span class="stat-value">YOLO11M-Pose</span>
+                </div>
+                <div class="stat-item">
+                    <span>SYSTEM LOAD</span>
+                    <span class="stat-value">23%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 23%"></div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">🚨 Recent Detections <span id="detectionCountBadge" style="color: #ffff00; font-size: 9px;">(0)</span></div>
+                <div class="detection-list" id="detectionList">
+                    <div class="detection-item" style="text-align: center; color: #666; border: 1px solid #333; background: #1a2530;">
+                        <div class="detection-desc">No detections yet. Start detection to see results here.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="panel-title">⚡ Quick Actions</div>
+                <button class="action-button btn-primary" onclick="startDetection()" id="startDetectionBtn">Start Detection</button>
+                <button class="action-button btn-warning" onclick="stopDetection()" id="stopDetectionBtn" disabled>Stop Detection</button>
+                  <button class="action-button btn-primary" onclick="toggleReportPanel()">View Analytics</button>
+                <button class="action-button btn-info" onclick="openPlaybackModal()">View Playback</button>
+                <button class="action-button btn-info" onclick="goToOptions()">← Back to Options</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="control-buttons">
+        <div class="control-btn" onclick="togglePlayback()" title="Play/Pause">⏯️</div>
+        <div class="control-btn" onclick="previousFrame()" title="Previous">⏮️</div>
+        <div class="control-btn" onclick="nextFrame()" title="Next">⏭️</div>
+        <div class="control-btn" onclick="toggleFullscreen()" title="Fullscreen">⛶</div>
+        <div class="control-btn" onclick="toggleRecord()" title="Record">⏺️</div>
+    </div>
+
+    <!-- Video Playback Modal -->
+    <div id="playbackModal" class="playback-modal" style="display: none;">
+        <div class="playback-modal-content">
+            <div class="playback-header">
+                <h3>📹 Video Playback</h3>
+                <button class="close-btn" onclick="closePlaybackModal()">&times;</button>
+            </div>
+            
+            <div class="playback-body">
+                <div class="video-upload-section">
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-icon">📁</div>
+                        <div class="upload-text">Drop video file here or click to browse</div>
+                        <input type="file" id="videoFileInput" accept="video/*" style="display: none;">
+                    </div>
+                </div>
+                
+                <div class="video-player-section" id="videoPlayerSection" style="display: none;">
+                    <div class="video-container-playback">
+                        <video id="playbackVideo" controls style="width: 100%; height: 400px; background: #000;">
+                            Your browser does not support the video tag.
+                        </video>
+                        <canvas id="playbackCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;"></canvas>
+                    </div>
+                    
+                    <div class="playback-controls">
+                        <button class="playback-btn" onclick="playVideo()" id="playBtn">▶️ Play</button>
+                        <button class="playback-btn" onclick="pauseVideo()" id="pauseBtn" style="display: none;">⏸️ Pause</button>
+                        <button class="playback-btn" onclick="stopVideo()">⏹️ Stop</button>
+                        <button class="playback-btn" onclick="restartVideo()">🔄 Restart</button>
+                        <button class="playback-btn" onclick="toggleMute()" id="muteBtn">🔊 Mute</button>
+                    </div>
+                    
+                    <div class="playback-info">
+                        <div class="info-item">
+                            <span>File:</span>
+                            <span id="videoFileName">No file selected</span>
+                        </div>
+                        <div class="info-item">
+                            <span>Duration:</span>
+                            <span id="videoDuration">00:00</span>
+                        </div>
+                        <div class="info-item">
+                            <span>Current:</span>
+                            <span id="videoCurrentTime">00:00</span>
+                        </div>
+                        <div class="info-item">
+                            <span>Detections:</span>
+                            <span id="playbackDetections">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detection Report Panel -->
+    <div id="reportPanel" class="report-panel">
+        <div class="report-header">
+            <div class="report-title">📊 Detection Report</div>
+            <button class="close-report" onclick="toggleReportPanel()">&times;</button>
+        </div>
+        
+        <div class="report-content">
+            <div class="report-section">
+                <div class="report-section-title">📈 Statistics</div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="reportTotalDetections">0</div>
+                        <div class="stat-label">Total Detections</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="reportAvgConfidence">0%</div>
+                        <div class="stat-label">Avg Confidence</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="reportMaxConfidence">0%</div>
+                        <div class="stat-label">Max Confidence</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="reportMinConfidence">0%</div>
+                        <div class="stat-label">Min Confidence</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="report-section">
+                <div class="report-section-title">🎯 Object Detection Summary</div>
+                <div class="total-objects-display">
+                    <div class="total-objects-label">TOTAL OBJECTS DETECTED:</div>
+                    <div class="total-objects-count" id="totalObjectsCount">0</div>
+                </div>
+                <div class="object-summary-grid" id="objectSummaryGrid">
+                    <div class="object-summary-item">
+                        <div class="object-icon">👤</div>
+                        <div class="object-details">
+                            <div class="object-name">PERSON</div>
+                            <div class="object-count" id="personCount">0</div>
+                        </div>
+                    </div>
+                    <div class="object-summary-item">
+                        <div class="object-icon">🚗</div>
+                        <div class="object-details">
+                            <div class="object-name">CAR</div>
+                            <div class="object-count" id="carCount">0</div>
+                        </div>
+                    </div>
+                    <div class="object-summary-item">
+                        <div class="object-icon">🚛</div>
+                        <div class="object-details">
+                            <div class="object-name">TRUCK</div>
+                            <div class="object-count" id="truckCount">0</div>
+                        </div>
+                    </div>
+                    <div class="object-summary-item">
+                        <div class="object-icon">🚌</div>
+                        <div class="object-details">
+                            <div class="object-name">BUS</div>
+                            <div class="object-count" id="busCount">0</div>
+                        </div>
+                    </div>
+                    <div class="object-summary-item">
+                        <div class="object-icon">🏍️</div>
+                        <div class="object-details">
+                            <div class="object-name">MOTORCYCLE</div>
+                            <div class="object-count" id="motorcycleCount">0</div>
+                        </div>
+                    </div>
+                    <div class="object-summary-item">
+                        <div class="object-icon">🚲</div>
+                        <div class="object-details">
+                            <div class="object-name">BICYCLE</div>
+                            <div class="object-count" id="bicycleCount">0</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="report-section-title" style="margin-top: 20px;">📊 Detailed Breakdown</div>
+                <div class="class-breakdown" id="classBreakdown">
+                    <div class="class-item">
+                        <span class="class-name">No data</span>
+                        <span class="class-count">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="report-section">
+                <div class="report-section-title">🕒 Recent Detections</div>
+                <div id="recentDetectionsList">
+                    <div class="detection-item-report">
+                        <div class="detection-desc" style="text-align: center; color: #666;">No detections yet</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="report-section">
+                <div class="report-section-title">⚙️ Controls</div>
+                <button class="action-button btn-primary" onclick="refreshReport()" style="width: 100%; margin-bottom: 8px;">Refresh Report</button>
+                <button class="action-button btn-info" onclick="exportReport()" style="width: 100%; margin-bottom: 8px;">Export Data</button>
+                <button class="action-button btn-warning" onclick="clearReport()" style="width: 100%;">Clear Data</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script>
+        // Update time
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toTimeString().split(' ')[0];
+            document.getElementById('currentTime').textContent = timeString;
+        }
+        
+        setInterval(updateTime, 1000);
+
+        let focusedCameraId = 'cam-01';
+        let isSingleView = false;
+
+        function applyCameraLayout() {
+            const cameraGrid = document.querySelector('.camera-grid');
+
+            if (isSingleView) {
+                if (cameraGrid) cameraGrid.classList.add('single-view');
+
+                document.querySelectorAll('.camera-feed').forEach((feed, idx) => {
+                    const index = idx + 1;
+                    const camId = `cam-0${index}`;
+                    if (camId === focusedCameraId) {
+                        feed.classList.add('active');
+                        feed.classList.remove('hidden');
+                    } else {
+                        feed.classList.remove('active');
+                        feed.classList.add('hidden');
+                    }
+                });
+            } else {
+                if (cameraGrid) cameraGrid.classList.remove('single-view');
+                document.querySelectorAll('.camera-feed').forEach((feed) => {
+                    feed.classList.remove('hidden');
+                });
+            }
+        }
+
+        // Camera selection from the sidebar: show only the selected camera in the grid
+        function selectCamera(camId) {
+            focusedCameraId = camId;
+            isSingleView = true;
+
+            // Remove active class from all camera items
+            document.querySelectorAll('.camera-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Add active class to selected camera
+            event.target.closest('.camera-item').classList.add('active');
+            
+            // Update camera feed focus (single-view mode)
+            const feedIndex = camId.split('-')[1];
+                
+            applyCameraLayout();
+
+            // If detection is active, ensure the selected video is visible
+                if (isDetectionActive) {
+                    const video = document.getElementById(`video${feedIndex}`);
+                    const icon = document.getElementById(`icon${feedIndex}`);
+                    const noSignal = document.getElementById(`no-signal${feedIndex}`);
+                    
+                    if (video && video.srcObject) {
+                        video.style.display = 'block';
+                    if (icon) icon.style.display = 'none';
+                    if (noSignal) noSignal.style.display = 'none';
+                }
+            }
+        }
+
+        // Control functions
+        function togglePlayback() {
+            console.log('Toggle playback');
+            // Add your playback logic here
+        }
+
+        function previousFrame() {
+            console.log('Previous frame');
+            // Add your previous frame logic here
+        }
+
+        function nextFrame() {
+            console.log('Next frame');
+            // Add your next frame logic here
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Double-click on a camera feed toggles between single-view and 4-camera grid
+        function openCameraFullscreen(index) {
+            const camId = `cam-0${index}`;
+            if (isSingleView && focusedCameraId === camId) {
+                // Already focused: go back to full 4-camera grid
+                isSingleView = false;
+            } else {
+                // Focus this camera only
+                focusedCameraId = camId;
+                isSingleView = true;
+            }
+            applyCameraLayout();
+        }
+
+        // Recording state for live.html
+        let isRecording = false;
+        // Map of cameraId -> sessionId (so each active camera records to its own file)
+        const recordingSessionIds = {};
+
+        function toggleRecord() {
+            const recordBtn = document.querySelector('.control-btn[title="Record"]');
+
+            if (!isRecording) {
+                // Start recording for all active cameras
+                const now = new Date().toISOString().replace(/[:.]/g, '-');
+                for (let i = 1; i <= 4; i++) {
+                    const video = document.getElementById(`video${i}`);
+                    if (video && video.srcObject) {
+                        // Create a session id that encodes the camera name, e.g. CAM-01-<timestamp>
+                        const camLabel = `CAM-0${i}`;
+                        recordingSessionIds[i] = `${camLabel}-${now}`;
+                        console.log(`Recording started for ${camLabel} with session_id=${recordingSessionIds[i]}`);
+                    }
+                }
+
+                isRecording = true;
+
+                if (recordBtn) {
+                    recordBtn.style.background = 'rgba(255, 0, 0, 0.5)';
+                    recordBtn.style.borderColor = '#ff4444';
+                }
+            } else {
+                // Stop recording; final flush will be sent for each active camera
+                console.log('Recording stop requested for all cameras');
+                isRecording = false;
+
+                if (recordBtn) {
+                    recordBtn.style.background = 'rgba(0, 255, 136, 0.2)';
+                    recordBtn.style.borderColor = '#00ff88';
+                }
+            }
+        }
+
+        // Explicitly send one final frame with record=false so the backend can
+        // finalize and close the video file for each recording camera.
+        async function flushAllRecordings() {
+            const sessionIds = { ...recordingSessionIds };
+
+            for (let i = 1; i <= 4; i++) {
+                const sessionId = sessionIds[i];
+                if (!sessionId) continue;
+
+                try {
+                    const video = document.getElementById(`video${i}`);
+                    if (!video || !video.srcObject) {
+                        console.log(`flushAllRecordings: no active stream for CAM-0${i}`);
+                        continue;
+                    }
+
+                    const frameData = captureFrameFromVideo(video);
+
+                    await fetch('{% url "process_frame_yolo" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({
+                            frame_data: frameData,
+                            session_id: sessionId,
+                            record: false,
+                            enable_gender: false
+                        })
+                    });
+
+                    console.log(`flushAllRecordings: finalized recording for CAM-0${i} (session_id=${sessionId})`);
+                } catch (err) {
+                    console.error(`flushAllRecordings error for CAM-0${i}:`, err);
+                } finally {
+                    delete recordingSessionIds[i];
+                }
+            }
+        }
+
+        // Global variables for camera management
+        let cameraStreams = {};
+        let detectionInterval = null;
+        let isDetectionActive = false;
+        let totalDetections = 0;
+        let currentDetections = 0;
+
+        // Detection control functions
+        async function startDetection() {
+            console.log('Starting detection...');
+            
+            try {
+                // Enable stop button and disable start button
+                document.getElementById('startDetectionBtn').disabled = true;
+                document.getElementById('stopDetectionBtn').disabled = false;
+                
+                // Update status indicator
+                const statusDot = document.querySelector('.status-dot');
+                statusDot.style.background = '#00ff88';
+                statusDot.style.animation = 'pulse 2s infinite';
+                
+                // Update system status
+                const statusText = document.querySelector('.status-indicator span');
+                statusText.textContent = 'DETECTION ACTIVE';
+
+                // Automatically start recording when detection starts
+                if (!isRecording) {
+                    toggleRecord();
+                }
+                
+                // Start camera feeds
+                await startCameraFeeds();
+                
+                // Start detection processing
+                startDetectionProcessing();
+                
+                isDetectionActive = true;
+                
+            } catch (error) {
+                console.error('Error starting detection:', error);
+                alert('Error starting camera detection. Please check camera permissions.');
+                stopDetection();
+            }
+        }
+
+        async function stopDetection() {
+            console.log('Stopping detection...');
+
+            // Stop recording together with detection and flush final frames
+            if (isRecording || Object.keys(recordingSessionIds).length > 0) {
+                // Turn off recording UI state
+                if (isRecording) {
+                    toggleRecord();
+                }
+                await flushAllRecordings();
+            }
+            
+            // Enable start button and disable stop button
+            document.getElementById('startDetectionBtn').disabled = false;
+            document.getElementById('stopDetectionBtn').disabled = true;
+            
+            // Update status indicator
+            const statusDot = document.querySelector('.status-dot');
+            statusDot.style.background = '#ff4444';
+            statusDot.style.animation = 'none';
+            
+            // Update system status
+            const statusText = document.querySelector('.status-indicator span');
+            statusText.textContent = 'SYSTEM STANDBY';
+            
+            // Stop camera streams
+            stopCameraFeeds();
+            
+            // Stop detection processing
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+                detectionInterval = null;
+            }
+            
+            // Clear detection overlays
+            document.querySelectorAll('.detection-overlay').forEach(overlay => {
+                overlay.style.display = 'none';
+            });
+            
+            // Show camera icons and hide videos
+            for (let i = 1; i <= 4; i++) {
+                document.getElementById(`icon${i}`).style.display = 'block';
+                document.getElementById(`video${i}`).style.display = 'none';
+                document.getElementById(`no-signal${i}`).style.display = 'none';
+            }
+            
+            // Reset current detections to zero
+            currentDetections = 0;
+            
+            // Clear detection list and show empty state
+            const detectionList = document.getElementById('detectionList');
+            detectionList.innerHTML = `
+                <div class="detection-item" style="text-align: center; color: #666; border: 1px solid #333; background: #1a2530;">
+                    <div class="detection-desc">No detections yet</div>
+                </div>
+            `;
+            
+            isDetectionActive = false;
+        }
+
+        // Start camera feeds (only attach available cameras to the first feeds)
+        async function startCameraFeeds() {
+            // Find connected video input devices
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(d => d.kind === 'videoinput');
+            console.log('Detected video devices:', videoDevices.map(d => ({ label: d.label, id: d.deviceId })));
+            
+            // If no cameras, show no-signal everywhere and exit
+            if (!videoDevices.length) {
+                for (let i = 1; i <= 4; i++) {
+                    document.getElementById(`video${i}`).style.display = 'none';
+                    document.getElementById(`icon${i}`).style.display = 'none';
+                    document.getElementById(`no-signal${i}`).style.display = 'block';
+                }
+                console.warn('No cameras detected');
+                return;
+            }
+            
+            // Attach each available camera to the corresponding feed (1:1)
+            for (let i = 0; i < 4; i++) {
+                const device = videoDevices[i];
+                const videoId = `video${i + 1}`;
+                const iconId = `icon${i + 1}`;
+                const noSignalId = `no-signal${i + 1}`;
+                
+                if (!device) {
+                    // No device for this slot, show no signal
+                    document.getElementById(videoId).style.display = 'none';
+                    document.getElementById(iconId).style.display = 'none';
+                    document.getElementById(noSignalId).style.display = 'block';
+                    continue;
+                }
+                
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { deviceId: { exact: device.deviceId } }
+                    });
+                    
+                    const video = document.getElementById(videoId);
+                    video.srcObject = stream;
+                    video.muted = true;
+                    // Ensure playback starts once metadata is loaded
+                    video.onloadedmetadata = () => video.play().catch(err => console.warn('Autoplay blocked', err));
+                    video.style.display = 'block';
+                    document.getElementById(iconId).style.display = 'none';
+                    document.getElementById(noSignalId).style.display = 'none';
+                    
+                    // Store stream for cleanup
+                    cameraStreams[i + 1] = stream;
+                    
+                    console.log(`Camera ${i + 1} (${device.label || 'camera'}) started successfully`);
+                } catch (error) {
+                    console.warn(`Camera ${i + 1} failed to start with exact device`, error);
+
+                    // For the first camera, allow a generic fallback so at least one feed works.
+                    // For additional cameras, if the exact device can't be opened, show NO SIGNAL
+                    // instead of reusing the default camera.
+                    if (i === 0) {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                        const video = document.getElementById(videoId);
+                        video.srcObject = stream;
+                        video.muted = true;
+                        video.onloadedmetadata = () => video.play().catch(err => console.warn('Autoplay blocked', err));
+                        video.style.display = 'block';
+                        document.getElementById(iconId).style.display = 'none';
+                        document.getElementById(noSignalId).style.display = 'none';
+                        cameraStreams[i + 1] = stream;
+                        console.log(`Camera ${i + 1} started via generic fallback`);
+                    } catch (fallbackError) {
+                        console.warn(`Camera ${i + 1} failed to start even with generic`, fallbackError);
+                            document.getElementById(videoId).style.display = 'none';
+                            document.getElementById(iconId).style.display = 'none';
+                            document.getElementById(noSignalId).style.display = 'block';
+                        }
+                    } else {
+                        // Do not steal the default camera for other slots; just mark as NO SIGNAL
+                        document.getElementById(videoId).style.display = 'none';
+                        document.getElementById(iconId).style.display = 'none';
+                        document.getElementById(noSignalId).style.display = 'block';
+                    }
+                }
+            }
+        }
+
+        // Stop camera feeds
+        function stopCameraFeeds() {
+            Object.values(cameraStreams).forEach(stream => {
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+            });
+            cameraStreams = {};
+        }
+
+        let detectionFrameCounter = 0;
+
+        // Start detection processing
+        function startDetectionProcessing() {
+            // Process frames ~5 times per second, but run heavy YOLO only once per second.
+            detectionInterval = setInterval(async () => {
+                if (!isDetectionActive) return;
+
+                detectionFrameCounter = (detectionFrameCounter + 1) % 5;
+                const runDetection = (detectionFrameCounter === 0); // every 5th frame
+                
+                // Process each active camera feed
+                for (let i = 1; i <= 4; i++) {
+                    const video = document.getElementById(`video${i}`);
+                    const canvas = document.getElementById(`canvas${i}`);
+                    
+                    if (video && video.srcObject && !video.paused) {
+                        await processCameraFrame(video, canvas, i, runDetection);
+                    }
+                }
+            }, 200); // ~5 FPS
+        }
+
+        // Process camera frame for detection
+        async function processCameraFrame(video, canvas, cameraId, runDetection) {
+            if (!video || video.readyState !== 4) return;
+            
+            try {
+                // Capture frame from video
+                const frameData = captureFrameFromVideo(video);
+                
+                // Determine session id for this camera (if recording)
+                const sessionId = isRecording ? (recordingSessionIds[cameraId] || null) : null;
+                
+                // Send frame to server. Heavy YOLO+gender runs only when runDetection is true.
+                const response = await fetch('{% url "process_frame_yolo" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        frame_data: frameData,
+                        // When recording is active for this camera, include its session_id
+                        session_id: sessionId || '',
+                        record: !!sessionId,
+                        run_detection: !!runDetection,
+                        enable_gender: !!runDetection  // Only run gender model on detection frames
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.detections) {
+                    drawDetectionsOnCanvas(canvas, result.detections, video, cameraId);
+                    updateDetectionStats(result.detections.length);
+                    
+                    // Add detections to the list
+                    if (result.detections.length > 0) {
+                        addDetectionsToList(result.detections, cameraId);
+                    }
+                }
+                
+            } catch (error) {
+                console.error(`Detection error for camera ${cameraId}:`, error);
+            }
+        }
+
+        // Capture frame from video element
+        function captureFrameFromVideo(video) {
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            tempCanvas.width = video.videoWidth || 640;
+            tempCanvas.height = video.videoHeight || 480;
+            
+            tempCtx.drawImage(video, 0, 0);
+            return tempCanvas.toDataURL('image/jpeg', 0.8).split(',')[1]; // Base64 without data:image/jpeg;base64,
+        }
+
+        // Simple bounding box smoothing to reduce jitter
+        const bboxHistory = {};
+        const SMOOTH_ALPHA = 0.65; // 0.65 old + 0.35 new
+        
+        function smoothBBox(cameraId, className, bbox) {
+            const key = `${cameraId}-${className}`;
+            const prev = bboxHistory[key];
+            if (!prev) {
+                bboxHistory[key] = bbox;
+                return bbox;
+            }
+            const smoothed = [
+                Math.round(prev[0] * SMOOTH_ALPHA + bbox[0] * (1 - SMOOTH_ALPHA)),
+                Math.round(prev[1] * SMOOTH_ALPHA + bbox[1] * (1 - SMOOTH_ALPHA)),
+                Math.round(prev[2] * SMOOTH_ALPHA + bbox[2] * (1 - SMOOTH_ALPHA)),
+                Math.round(prev[3] * SMOOTH_ALPHA + bbox[3] * (1 - SMOOTH_ALPHA)),
+            ];
+            bboxHistory[key] = smoothed;
+            return smoothed;
+        }
+
+        // Draw detections on canvas
+        function drawDetectionsOnCanvas(canvas, detections, video, cameraId = 0) {
+            const ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            
+            // Clear previous detections
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw new detections
+            detections.forEach(detection => {
+                const smoothedBox = smoothBBox(cameraId, detection.class_name, detection.bbox || [0,0,0,0]);
+                const [x, y, width, height] = smoothedBox;
+                const confidence = Math.round(detection.confidence * 100);
+                const className = detection.class_name;
+                
+                // Build label text
+                let labelText = `${className} ${confidence}%`;
+                if (detection.gender) {
+                    const genderConf = Math.round((detection.gender_confidence || 0) * 100);
+                    labelText += ` | ${detection.gender} ${genderConf}%`;
+                }
+                
+                // Calculate label width
+                ctx.font = '12px Courier New';
+                const labelWidth = ctx.measureText(labelText).width + 10;
+                
+                // Draw bounding box
+                ctx.strokeStyle = '#00ff88';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x, y, width, height);
+                
+                // Draw background for label (adjust width based on text)
+                ctx.fillStyle = 'rgba(0, 255, 136, 0.9)';
+                ctx.fillRect(x, y - 20, Math.max(120, labelWidth), 20);
+                
+                // Draw label text
+                ctx.fillStyle = '#0a1520';
+                ctx.font = '12px Courier New';
+                ctx.fillText(labelText, x + 5, y - 5);
+            });
+        }
+
+        // Update detection statistics
+        function updateDetectionStats(detectionCount) {
+            if (detectionCount > 0) {
+                totalDetections += detectionCount;
+                currentDetections = detectionCount;
+                document.getElementById('totalDetections').textContent = totalDetections;
+            } else {
+                currentDetections = 0;
+            }
+        }
+
+        // Add detections to the detection list
+        function addDetectionsToList(detections, cameraId) {
+            const detectionList = document.getElementById('detectionList');
+            const detectionCountBadge = document.getElementById('detectionCountBadge');
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            
+            // Remove "No detections yet" message if it exists
+            const emptyMessage = detectionList.querySelector('.detection-item[style*="text-align: center"]');
+            if (emptyMessage) {
+                emptyMessage.remove();
+            }
+            
+            detections.forEach(detection => {
+                const newDetection = document.createElement('div');
+                newDetection.className = 'detection-item';
+                
+                // Build detection description
+                let descText = `${detection.class_name.toUpperCase()} DETECTED<br>CONFIDENCE: ${Math.round(detection.confidence * 100)}%`;
+                if (detection.gender) {
+                    const genderConf = Math.round((detection.gender_confidence || 0) * 100);
+                    descText += `<br>GENDER: ${detection.gender.toUpperCase()} (${genderConf}%)`;
+                }
+                
+                newDetection.innerHTML = `
+                    <div class="detection-time">CAM-0${cameraId} - ${timeStr}</div>
+                    <div class="detection-desc">${descText}</div>
+                `;
+                
+                detectionList.insertBefore(newDetection, detectionList.firstChild);
+                
+                // Remove oldest detection if too many (keep last 10)
+                if (detectionList.children.length > 10) {
+                    detectionList.removeChild(detectionList.lastChild);
+                }
+            });
+            
+            // Update detection count badge
+            if (detectionCountBadge) {
+                const currentCount = detectionList.children.length;
+                detectionCountBadge.textContent = `(${currentCount})`;
+            }
+            
+            // Scroll to top to show latest detection
+            detectionList.scrollTop = 0;
+        }
+
+        // Get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Simulate detection updates (only when detection is not active)
+        function updateDetections() {
+            // Only run simulation if detection is not active AND camera is on
+            if (isDetectionActive) return;
+            
+            // Don't show notifications when camera is off
+            return;
+            
+            if (Math.random() > 0.7) { // 30% chance of new detection
+                totalDetections++;
+                document.getElementById('totalDetections').textContent = totalDetections;
+                
+                // Add new detection to list
+                const detectionList = document.getElementById('detectionList');
+                const now = new Date();
+                const timeStr = now.toTimeString().split(' ')[0];
+                
+                // Remove "No detections yet" message if it exists
+                const emptyMessage = detectionList.querySelector('.detection-item[style*="text-align: center"]');
+                if (emptyMessage) {
+                    emptyMessage.remove();
+                }
+                
+                const newDetection = document.createElement('div');
+                newDetection.className = 'detection-item';
+                newDetection.innerHTML = `
+                    <div class="detection-time">CAM-0${Math.floor(Math.random() * 4) + 1} - ${timeStr}</div>
+                    <div class="detection-desc">HUMAN DETECTED<br>CONFIDENCE: ${Math.floor(Math.random() * 20) + 80}%</div>
+                `;
+                
+                detectionList.insertBefore(newDetection, detectionList.firstChild);
+                
+                // Remove oldest detection if too many
+                if (detectionList.children.length > 5) {
+                    detectionList.removeChild(detectionList.lastChild);
+                }
+            }
+        }
+
+        // Animate detection overlays
+        function animateDetections() {
+            const overlays = document.querySelectorAll('.detection-overlay');
+            overlays.forEach(overlay => {
+                overlay.style.opacity = Math.random() > 0.5 ? '0.8' : '0.3';
+            });
+        }
+
+        setInterval(updateDetections, 5000); // Check for new detections every 5 seconds
+        setInterval(animateDetections, 1000); // Animate detection boxes every second
+
+        // Reset all detection values to zero
+        function resetDetectionValues() {
+            totalDetections = 0;
+            currentDetections = 0;
+            
+            // Update UI elements
+            document.getElementById('totalDetections').textContent = '0';
+            
+            // Clear detection list and show empty state
+            const detectionList = document.getElementById('detectionList');
+            detectionList.innerHTML = `
+                <div class="detection-item" style="text-align: center; color: #666; border: 1px solid #333; background: #1a2530;">
+                    <div class="detection-desc">No detections yet</div>
+                </div>
+            `;
+            
+            // Clear any detection overlays
+            document.querySelectorAll('.detection-overlay').forEach(overlay => {
+                overlay.style.display = 'none';
+            });
+            
+            console.log('Detection values reset to zero');
+        }
+
+        // Initialize
+        updateTime();
+        resetDetectionValues();
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            stopDetection();
+        });
+
+        // Back to Options navigation (same as 2FA page behavior)
+        function goToOptions() {
+            window.location.href = "{% url 'options' %}";
+        }
+
+        // Playback Modal Functions
+        function openPlaybackModal() {
+            document.getElementById('playbackModal').style.display = 'flex';
+        }
+
+        function closePlaybackModal() {
+            document.getElementById('playbackModal').style.display = 'none';
+            // Stop any playing video
+            const video = document.getElementById('playbackVideo');
+            if (video) {
+                video.pause();
+                video.currentTime = 0;
+            }
+        }
+
+        // Video playback variables
+        let playbackVideo = null;
+        let playbackCanvas = null;
+        let playbackCtx = null;
+        let playbackDetections = [];
+        let isPlaybackProcessing = false;
+
+        // Initialize playback when modal opens
+        document.addEventListener('DOMContentLoaded', function() {
+            playbackVideo = document.getElementById('playbackVideo');
+            playbackCanvas = document.getElementById('playbackCanvas');
+            if (playbackCanvas) {
+                playbackCtx = playbackCanvas.getContext('2d');
+            }
+
+            // File upload handling
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('videoFileInput');
+
+            uploadArea.addEventListener('click', () => fileInput.click());
+            uploadArea.addEventListener('dragover', handleDragOver);
+            uploadArea.addEventListener('drop', handleDrop);
+            fileInput.addEventListener('change', handleFileSelect);
+
+            // Video event listeners
+            if (playbackVideo) {
+                playbackVideo.addEventListener('loadedmetadata', updateVideoInfo);
+                playbackVideo.addEventListener('timeupdate', updateCurrentTime);
+                playbackVideo.addEventListener('play', () => {
+                    document.getElementById('playBtn').style.display = 'none';
+                    document.getElementById('pauseBtn').style.display = 'inline-block';
+                });
+                playbackVideo.addEventListener('pause', () => {
+                    document.getElementById('playBtn').style.display = 'inline-block';
+                    document.getElementById('pauseBtn').style.display = 'none';
+                });
+            }
+        });
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.style.background = 'rgba(0, 255, 136, 0.1)';
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.currentTarget.style.background = 'rgba(0, 255, 136, 0.05)';
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleVideoFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleVideoFile(file);
+            }
+        }
+
+        function handleVideoFile(file) {
+            if (!file.type.startsWith('video/')) {
+                alert('Please select a valid video file.');
+                return;
+            }
+
+            const url = URL.createObjectURL(file);
+            playbackVideo.src = url;
+            document.getElementById('videoFileName').textContent = file.name;
+            
+            // Show video player section
+            document.getElementById('videoPlayerSection').style.display = 'block';
+            document.getElementById('uploadArea').style.display = 'none';
+        }
+
+        function updateVideoInfo() {
+            const duration = formatTime(playbackVideo.duration);
+            document.getElementById('videoDuration').textContent = duration;
+        }
+
+        function updateCurrentTime() {
+            const current = formatTime(playbackVideo.currentTime);
+            document.getElementById('videoCurrentTime').textContent = current;
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Video control functions
+        function playVideo() {
+            if (playbackVideo) {
+                playbackVideo.play();
+                if (!isPlaybackProcessing) {
+                    startPlaybackDetection();
+                }
+            }
+        }
+
+        function pauseVideo() {
+            if (playbackVideo) {
+                playbackVideo.pause();
+            }
+        }
+
+        function stopVideo() {
+            if (playbackVideo) {
+                playbackVideo.pause();
+                playbackVideo.currentTime = 0;
+                document.getElementById('playBtn').style.display = 'inline-block';
+                document.getElementById('pauseBtn').style.display = 'none';
+                stopPlaybackDetection();
+            }
+        }
+
+        function restartVideo() {
+            if (playbackVideo) {
+                playbackVideo.currentTime = 0;
+                if (!playbackVideo.paused) {
+                    playbackVideo.play();
+                }
+            }
+        }
+
+        function toggleMute() {
+            if (playbackVideo) {
+                playbackVideo.muted = !playbackVideo.muted;
+                const muteBtn = document.getElementById('muteBtn');
+                muteBtn.textContent = playbackVideo.muted ? '🔇 Unmute' : '🔊 Mute';
+            }
+        }
+
+        // Playback detection functions
+        function startPlaybackDetection() {
+            isPlaybackProcessing = true;
+            playbackDetections = [];
+            
+            // Process video frames for detection
+            const processInterval = setInterval(async () => {
+                if (!isPlaybackProcessing || playbackVideo.paused || playbackVideo.ended) {
+                    clearInterval(processInterval);
+                    return;
+                }
+
+                await processPlaybackFrame();
+            }, 1000); // Process every second
+        }
+
+        function stopPlaybackDetection() {
+            isPlaybackProcessing = false;
+            if (playbackCtx) {
+                playbackCtx.clearRect(0, 0, playbackCanvas.width, playbackCanvas.height);
+            }
+        }
+
+        async function processPlaybackFrame() {
+            if (!playbackVideo || playbackVideo.readyState !== 4) return;
+
+            try {
+                // Capture frame from video
+                const frameData = captureFrameFromPlaybackVideo();
+                
+                // Send frame to server for YOLO detection with gender detection enabled
+                const response = await fetch('{% url "process_frame_yolo" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        frame_data: frameData,
+                        enable_gender: true  // Enable gender detection for playback
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.detections) {
+                    playbackDetections = result.detections;
+                    drawPlaybackDetections();
+                    updatePlaybackDetectionCount();
+                }
+                
+            } catch (error) {
+                console.error('Playback detection error:', error);
+            }
+        }
+
+        function captureFrameFromPlaybackVideo() {
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            tempCanvas.width = playbackVideo.videoWidth || 640;
+            tempCanvas.height = playbackVideo.videoHeight || 480;
+            
+            tempCtx.drawImage(playbackVideo, 0, 0);
+            return tempCanvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+        }
+
+        function drawPlaybackDetections() {
+            if (!playbackCtx || !playbackVideo) return;
+            
+            // Set canvas size to match video
+            playbackCanvas.width = playbackVideo.videoWidth || 640;
+            playbackCanvas.height = playbackVideo.videoHeight || 480;
+            
+            // Clear previous detections
+            playbackCtx.clearRect(0, 0, playbackCanvas.width, playbackCanvas.height);
+            
+            // Draw new detections
+            playbackDetections.forEach(detection => {
+                const [x, y, width, height] = detection.bbox;
+                const confidence = Math.round(detection.confidence * 100);
+                const className = detection.class_name;
+                
+                // Build label text
+                let labelText = `${className} ${confidence}%`;
+                if (detection.gender) {
+                    const genderConf = Math.round((detection.gender_confidence || 0) * 100);
+                    labelText += ` | ${detection.gender} ${genderConf}%`;
+                }
+                
+                // Calculate label width
+                playbackCtx.font = '12px Courier New';
+                const labelWidth = playbackCtx.measureText(labelText).width + 10;
+                
+                // Draw bounding box
+                playbackCtx.strokeStyle = '#00ff88';
+                playbackCtx.lineWidth = 2;
+                playbackCtx.strokeRect(x, y, width, height);
+                
+                // Draw background for label (adjust width based on text)
+                playbackCtx.fillStyle = 'rgba(0, 255, 136, 0.9)';
+                playbackCtx.fillRect(x, y - 20, Math.max(120, labelWidth), 20);
+                
+                // Draw label text
+                playbackCtx.fillStyle = '#0a1520';
+                playbackCtx.font = '12px Courier New';
+                playbackCtx.fillText(labelText, x + 5, y - 5);
+            });
+        }
+
+        function updatePlaybackDetectionCount() {
+            document.getElementById('playbackDetections').textContent = playbackDetections.length;
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('playbackModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePlaybackModal();
+            }
+        });
+
+        // Report Panel Functions
+        let reportData = {
+            totalDetections: 0,
+            avgConfidence: 0,
+            maxConfidence: 0,
+            minConfidence: 0,
+            classBreakdown: {},
+            recentDetections: []
+        };
+
+        function toggleReportPanel() {
+            // Redirect to analytics page instead of showing inline panel
+            window.location.href = "{% url 'analytics' %}";
+        }
+
+        async function refreshReport() {
+            try {
+                const response = await fetch('{% url "detection_report" %}', {
+                    method: 'GET',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateReportDisplay(data);
+                } else {
+                    console.error('Error fetching report:', data.error);
+                }
+            } catch (error) {
+                console.error('Error fetching report:', error);
+            }
+        }
+
+        function updateReportDisplay(data) {
+            // Update statistics
+            document.getElementById('reportTotalDetections').textContent = data.statistics.total_detections || 0;
+            document.getElementById('reportAvgConfidence').textContent = Math.round((data.statistics.avg_confidence || 0) * 100) + '%';
+            document.getElementById('reportMaxConfidence').textContent = Math.round((data.statistics.max_confidence || 0) * 100) + '%';
+            document.getElementById('reportMinConfidence').textContent = Math.round((data.statistics.min_confidence || 0) * 100) + '%';
+
+            // Update object summary counts
+            updateObjectSummaryCounts(data.class_breakdown || []);
+
+            // Update class breakdown
+            const classBreakdown = document.getElementById('classBreakdown');
+            classBreakdown.innerHTML = '';
+            
+            if (data.class_breakdown && data.class_breakdown.length > 0) {
+                data.class_breakdown.forEach(item => {
+                    const classItem = document.createElement('div');
+                    classItem.className = 'class-item';
+                    classItem.innerHTML = `
+                        <span class="class-name">${item.object_class}</span>
+                        <span class="class-count">${item.count}</span>
+                    `;
+                    classBreakdown.appendChild(classItem);
+                });
+            } else {
+                classBreakdown.innerHTML = `
+                    <div class="class-item">
+                        <span class="class-name">No data</span>
+                        <span class="class-count">0</span>
+                    </div>
+                `;
+            }
+
+            // Update recent detections
+            const recentDetectionsList = document.getElementById('recentDetectionsList');
+            recentDetectionsList.innerHTML = '';
+            
+            if (data.recent_detections && data.recent_detections.length > 0) {
+                data.recent_detections.forEach(detection => {
+                    const detectionItem = document.createElement('div');
+                    detectionItem.className = 'detection-item-report';
+                    
+                    const timestamp = new Date(detection.timestamp);
+                    const timeStr = timestamp.toLocaleTimeString();
+                    
+                    detectionItem.innerHTML = `
+                        <div class="detection-item-header">
+                            <span class="detection-class">${detection.object_class}</span>
+                            <span class="detection-confidence">${Math.round(detection.confidence * 100)}%</span>
+                        </div>
+                        <div class="detection-time">${timeStr}</div>
+                        <div class="detection-bbox">Position: ${detection.bbox.join(', ')}</div>
+                    `;
+                    
+                    recentDetectionsList.appendChild(detectionItem);
+                });
+            } else {
+                recentDetectionsList.innerHTML = `
+                    <div class="detection-item-report">
+                        <div class="detection-desc" style="text-align: center; color: #666;">No detections yet</div>
+                    </div>
+                `;
+            }
+        }
+
+        function updateObjectSummaryCounts(classBreakdown) {
+            // Initialize all counts to 0
+            const objectCounts = {
+                'person': 0,
+                'car': 0,
+                'truck': 0,
+                'bus': 0,
+                'motorcycle': 0,
+                'bicycle': 0
+            };
+
+            // Update counts from class breakdown data
+            classBreakdown.forEach(item => {
+                const className = item.object_class.toLowerCase();
+                if (objectCounts.hasOwnProperty(className)) {
+                    objectCounts[className] = item.count;
+                }
+            });
+
+            // Calculate total objects
+            const totalObjects = Object.values(objectCounts).reduce((sum, count) => sum + count, 0);
+
+            // Update the UI elements
+            document.getElementById('personCount').textContent = objectCounts.person;
+            document.getElementById('carCount').textContent = objectCounts.car;
+            document.getElementById('truckCount').textContent = objectCounts.truck;
+            document.getElementById('busCount').textContent = objectCounts.bus;
+            document.getElementById('motorcycleCount').textContent = objectCounts.motorcycle;
+            document.getElementById('bicycleCount').textContent = objectCounts.bicycle;
+            document.getElementById('totalObjectsCount').textContent = totalObjects;
+        }
+
+        function exportReport() {
+            // Create a simple CSV export
+            const csvContent = generateCSVReport();
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `detection_report_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+
+        function generateCSVReport() {
+            let csv = 'Timestamp,Object Class,Confidence,Bounding Box X,Bounding Box Y,Width,Height\n';
+            
+            // Add recent detections to CSV
+            const detectionItems = document.querySelectorAll('.detection-item-report');
+            detectionItems.forEach(item => {
+                const classElement = item.querySelector('.detection-class');
+                const confidenceElement = item.querySelector('.detection-confidence');
+                const timeElement = item.querySelector('.detection-time');
+                const bboxElement = item.querySelector('.detection-bbox');
+                
+                if (classElement && confidenceElement && timeElement && bboxElement) {
+                    const className = classElement.textContent;
+                    const confidence = confidenceElement.textContent.replace('%', '');
+                    const time = timeElement.textContent;
+                    const bboxText = bboxElement.textContent.replace('Position: ', '');
+                    const bbox = bboxText.split(', ');
+                    
+                    csv += `${time},${className},${confidence},${bbox[0] || ''},${bbox[1] || ''},${bbox[2] || ''},${bbox[3] || ''}\n`;
+                }
+            });
+            
+            return csv;
+        }
+
+        function clearReport() {
+            if (confirm('Are you sure you want to clear all detection data? This action cannot be undone.')) {
+                // This would need a backend endpoint to clear data
+                alert('Clear data functionality would be implemented with a backend endpoint.');
+            }
+        }
+
+        // Auto-refresh report every 30 seconds when panel is open
+        setInterval(() => {
+            const panel = document.getElementById('reportPanel');
+            if (panel.classList.contains('open')) {
+                refreshReport();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
