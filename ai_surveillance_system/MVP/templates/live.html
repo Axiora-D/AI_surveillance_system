@@ -1226,6 +1226,7 @@
                     }
 
                     const frameData = captureFrameFromVideo(video);
+                    const camId = `cam-0${i}`;
 
                     await fetch('{% url "process_frame_yolo" %}', {
                         method: 'POST',
@@ -1236,6 +1237,8 @@
                         body: JSON.stringify({
                             frame_data: frameData,
                             session_id: sessionId,
+                            cam_id: camId,  // Camera ID for live recordings
+                            detection_type: 'live',  // Live detection type
                             record: false,
                             enable_gender: false
                         })
@@ -1458,7 +1461,7 @@
             detectionInterval = setInterval(async () => {
                 if (!isDetectionActive) return;
 
-                detectionFrameCounter = (detectionFrameCounter + 1) % 5;
+                detectionFrameCounter = (detectionFrameCounter + 1) % 10;
                 const runDetection = (detectionFrameCounter === 0); // every 5th frame
                 
                 // Process each active camera feed
@@ -1482,7 +1485,18 @@
                 const frameData = captureFrameFromVideo(video);
                 
                 // Determine session id for this camera (if recording)
-                const sessionId = isRecording ? (recordingSessionIds[cameraId] || null) : null;
+                // If recording is active but this camera doesn't have a session ID yet, create one
+                let sessionId = null;
+                if (isRecording) {
+                    if (!recordingSessionIds[cameraId]) {
+                        // Camera became active during recording - create session ID now
+                        const now = new Date().toISOString().replace(/[:.]/g, '-');
+                        const camLabel = `CAM-0${cameraId}`;
+                        recordingSessionIds[cameraId] = `${camLabel}-${now}`;
+                        console.log(`Recording started for ${camLabel} with session_id=${recordingSessionIds[cameraId]} (late start)`);
+                    }
+                    sessionId = recordingSessionIds[cameraId];
+                }
                 
                 // Send frame to server. Heavy YOLO+gender runs only when runDetection is true.
                 const response = await fetch('{% url "process_frame_yolo" %}', {
@@ -1495,11 +1509,24 @@
                         frame_data: frameData,
                         // When recording is active for this camera, include its session_id
                         session_id: sessionId || '',
+                        cam_id: cameraId || 'cam-01',  // Camera ID for live recordings
+                        detection_type: 'live',  // Live detection type
                         record: !!sessionId,
                         run_detection: !!runDetection,
                         enable_gender: !!runDetection  // Only run gender model on detection frames
                     })
                 });
+                
+                // Debug logging for recording
+                if (sessionId && isRecording) {
+                    console.log(`[RECORDING] Camera ${cameraId}: session_id=${sessionId}, record=true`);
+                }
+                
+                if (!response.ok) {
+                    const errText = await response.text();
+                    console.error(`Detection API error for camera ${cameraId}: ${response.status}`, errText);
+                    return;
+                }
                 
                 const result = await response.json();
                 
@@ -1511,6 +1538,8 @@
                     if (result.detections.length > 0) {
                         addDetectionsToList(result.detections, cameraId);
                     }
+                } else if (result.error) {
+                    console.warn(`Detection warning for camera ${cameraId}:`, result.error);
                 }
                 
             } catch (error) {
@@ -1944,6 +1973,8 @@
                     },
                     body: JSON.stringify({
                         frame_data: frameData,
+                        cam_id: playbackVideo?.src ? 'PLAYBACK' : 'VIDEO',  // Playback video identifier
+                        detection_type: 'video',  // Video playback detection type
                         enable_gender: true  // Enable gender detection for playback
                     })
                 });

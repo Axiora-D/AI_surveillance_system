@@ -621,7 +621,7 @@
                         <span class="stat-label">TOTAL DETECTIONS</span>
                         <i data-lucide="users" style="width: 16px; height: 16px;"></i>
                     </div>
-                    <div class="stat-value" id="total-detections">147</div>
+                    <div class="stat-value" id="total-detections">0</div>
                 </div>
                 
                 <div class="stat-box">
@@ -692,6 +692,8 @@
         let processingFPS = 0;
         let detectionInterval = null;
         let frameCount = 0;
+        let currentCamId = 'VIDEO'; // Default cam_id for video uploads
+        let currentDetectionType = 'video'; // 'video' for uploaded videos
 
         // Recent detections list (populated from real detections)
         let recentDetections = [];
@@ -751,6 +753,10 @@
                 uploadText.textContent = file.name;
                 videoFilename.textContent = file.name;
                 startBtn.disabled = false;
+                
+                // Set cam_id and detection_type for this video
+                currentCamId = file.name || 'VIDEO';
+                currentDetectionType = 'video';
                 
                 // Add video event listeners
                 setupVideoEventListeners();
@@ -814,19 +820,26 @@
             
             if (isProcessing) return;
             
+            // Reset all detection state to 0 when starting
+            totalDetections = 0;
+            detections = [];
+            recentDetections = [];
+            frameCount = 0;
+            document.getElementById('total-detections').textContent = '0';
+            document.getElementById('current-frame-detections').textContent = '0';
+            document.getElementById('recent-detections').innerHTML = '';
+            document.getElementById('detection-overlays').innerHTML = '';
+            
             isProcessing = true;
             updateStatus();
             updateStartButton();
             
-            // Auto-play video when detection starts
+            // Auto-play video when detection starts so detection begins immediately
             if (videoElement.paused) {
                 videoElement.play();
             }
             
-            // Add test overlays first to verify positioning
-            addTestOverlays();
-            
-            // Start detection process
+            // Start detection process (bounding boxes will show from API results)
             startDetectionLoop();
         });
 
@@ -855,7 +868,7 @@
                 
                 frameCount++;
                 processVideoFrameWithYOLO();
-            }, 1000); // process roughly once per second to reduce load
+            }, 200); // ~5 frames per second
         }
 
         async function processVideoFrameWithYOLO() {
@@ -863,18 +876,14 @@
                 // Capture current video frame
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
-
-                // Downscale the frame before sending to the server to speed up processing
-                const scaleFactor = 0.5; // 50% of original size
-                canvas.width = Math.max(1, Math.floor(videoElement.videoWidth * scaleFactor));
-                canvas.height = Math.max(1, Math.floor(videoElement.videoHeight * scaleFactor));
-
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
                 ctx.drawImage(videoElement, 0, 0);
                 
                 // Convert to base64
                 const frameData = canvas.toDataURL('image/jpeg').split(',')[1];
                 
-                // Send to YOLO API
+                // Send to YOLO API with cam_id and detection_type
                 const response = await fetch('/api/process-frame/', {
                     method: 'POST',
                     headers: {
@@ -882,7 +891,10 @@
                         'X-CSRFToken': getCookie('csrftoken')
                     },
                     body: JSON.stringify({
-                        frame_data: frameData
+                        frame_data: frameData,
+                        cam_id: currentCamId,
+                        detection_type: currentDetectionType,
+                        session_id: selectedVideo ? selectedVideo.name : ''
                     })
                 });
                 
@@ -914,18 +926,19 @@
             processingFPS = 5;
             document.getElementById('processing-fps').textContent = processingFPS;
             
-            // Add to recent detections
+            // Add all detections from this frame to recent (accurate list)
             if (detections.length > 0) {
-                    const newDetection = {
-                    id: Date.now(),
-                    time: new Date().toLocaleTimeString('en-US', { hour12: false }),
-                    confidence: detections[0].confidence,
-                    bbox: detections[0].bbox,
-                    class: detections[0].class_name || detections[0].class || "person"
-                };
-                
-                recentDetections.unshift(newDetection);
-                recentDetections = recentDetections.slice(0, 5);
+                const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
+                detections.forEach(d => {
+                    recentDetections.unshift({
+                        id: Date.now() + Math.random(),
+                        time: timeStr,
+                        confidence: d.confidence,
+                        bbox: d.bbox,
+                        class: d.class_name || d.class || 'person'
+                    });
+                });
+                recentDetections = recentDetections.slice(0, 15);
                 updateRecentDetections();
             }
             
@@ -1062,36 +1075,19 @@
             
             overlaysContainer.innerHTML = '';
             
-            if (!isProcessing) {
-                console.log('Not processing, skipping overlays');
-                return;
-            }
+            if (!isProcessing) return;
+            if (!videoElement || videoElement.videoWidth === 0) return;
             
-            if (!videoElement || videoElement.videoWidth === 0) {
-                console.log('Video not ready, skipping overlays');
-                return;
-            }
-            
-            console.log('Updating detection overlays, detections:', detections.length);
-            
-            // Get video dimensions
+            // Get video dimensions and scale bbox from video coords to display coords
             const videoRect = videoElement.getBoundingClientRect();
             const videoWidth = videoElement.videoWidth;
             const videoHeight = videoElement.videoHeight;
             const displayWidth = videoRect.width;
             const displayHeight = videoRect.height;
-            
-            console.log('Video dimensions:', { videoWidth, videoHeight, displayWidth, displayHeight });
-            
-            // Calculate scale factors
             const scaleX = displayWidth / videoWidth;
             const scaleY = displayHeight / videoHeight;
             
-            console.log('Scale factors:', { scaleX, scaleY });
-            
-            detections.forEach((detection, index) => {
-                console.log('Processing detection:', detection);
-                
+            detections.forEach((detection) => {
                 const overlay = document.createElement('div');
                 overlay.className = 'detection-box';
                 
@@ -1100,8 +1096,6 @@
                 const scaledY = detection.bbox[1] * scaleY;
                 const scaledWidth = detection.bbox[2] * scaleX;
                 const scaledHeight = detection.bbox[3] * scaleY;
-                
-                console.log('Scaled coordinates:', { scaledX, scaledY, scaledWidth, scaledHeight });
                 
                 // Set basic positioning
                 overlay.style.position = 'absolute';
@@ -1151,11 +1145,7 @@
                 
                 overlay.appendChild(label);
                 overlaysContainer.appendChild(overlay);
-                
-                console.log('Added overlay to container');
             });
-            
-            console.log('Total overlays added:', overlaysContainer.children.length);
         }
 
         // Initialize the dashboard

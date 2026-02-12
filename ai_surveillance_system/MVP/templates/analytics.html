@@ -1141,7 +1141,7 @@
             
             // Add timeline header
             chartHtml += '<div style="display: flex; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px solid #00ff88;">';
-            chartHtml += '<span style="width: 60px; color: #00ff88; font-weight: bold;">TIME</span>';
+            chartHtml += '<span style="width: 90px; min-width: 90px; color: #00ff88; font-weight: bold;">TIME</span>';
             chartHtml += '<span style="flex: 1; color: #00ff88; font-weight: bold; text-align: center;">DETECTIONS</span>';
             chartHtml += '<span style="width: 80px; color: #00ff88; font-weight: bold; text-align: right;">COUNT</span>';
             chartHtml += '</div>';
@@ -1157,7 +1157,7 @@
                 
                 chartHtml += `
                     <div style="display: flex; align-items: center; margin-bottom: 2px; padding: 1px 0; position: relative;">
-                        <span style="width: 60px; color: #00ff88; font-size: 9px;">${hour.hour}</span>
+                        <span style="width: 90px; min-width: 90px; color: #00ff88; font-size: 9px;">${hour.hour}</span>
                         <div style="flex: 1; display: flex; align-items: center; margin: 0 10px;">
                             <span style="color: #ffff00; margin-right: 5px;">${bar}</span>
                             <span style="color: #666; font-size: 8px;">${percentage}%</span>

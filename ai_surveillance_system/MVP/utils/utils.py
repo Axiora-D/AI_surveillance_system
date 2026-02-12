@@ -31,9 +31,36 @@ def create_recording_session(camera_name):
     return session_path, start_time_str
 
 def create_video_writer(session_path, fps, frame_size):
+    """
+    Create a video writer for recording frames.
+    Returns (writer, video_path) or (None, video_path) if creation fails.
+    """
+    # Ensure directory exists
+    os.makedirs(session_path, exist_ok=True)
+    
     video_path = os.path.join(session_path, "video.mp4")
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    writer = cv2.VideoWriter(video_path, fourcc, fps, frame_size)
+    
+    # Try multiple codecs - mp4v is common but may not work on all systems
+    codecs_to_try = [
+        ('mp4v', cv2.VideoWriter_fourcc(*'mp4v')),
+        ('XVID', cv2.VideoWriter_fourcc(*'XVID')),
+        ('MJPG', cv2.VideoWriter_fourcc(*'MJPG')),
+    ]
+    
+    writer = None
+    for codec_name, fourcc in codecs_to_try:
+        writer = cv2.VideoWriter(video_path, fourcc, fps, frame_size)
+        if writer.isOpened():
+            print(f"DEBUG: VideoWriter created successfully with codec {codec_name} for {video_path}")
+            break
+        else:
+            writer.release()
+            writer = None
+    
+    if writer is None or not writer.isOpened():
+        print(f"ERROR: Failed to create VideoWriter for {video_path} with any codec")
+        return None, video_path
+    
     return writer, video_path
 
 def save_detections_to_excel(detections, session_path):
@@ -50,10 +77,28 @@ def save_detections_to_excel(detections, session_path):
     return excel_path
 
 def finalize_session(session_path, start_time_str):
+    """
+    Rename recording session folder to include end time.
+    Returns (final_path, end_time_str).
+    """
     end_time_str = timezone.localtime().strftime("%H-%M-%S")
     final_path = f"{session_path}_to_{end_time_str}"
-    os.rename(session_path, final_path)
-    return final_path, end_time_str
+    
+    try:
+        # If destination already exists, add a counter
+        if os.path.exists(final_path):
+            counter = 1
+            while os.path.exists(f"{final_path}_{counter}"):
+                counter += 1
+            final_path = f"{final_path}_{counter}"
+        
+        os.rename(session_path, final_path)
+        print(f"DEBUG: Session finalized: {session_path} -> {final_path}")
+        return final_path, end_time_str
+    except Exception as e:
+        print(f"ERROR: Failed to finalize session {session_path}: {e}")
+        # Return original path if rename fails
+        return session_path, end_time_str
 
 
 def process_frame(frame):
@@ -198,6 +243,17 @@ def draw_detection_box(frame, x, y, w, h, label, confidence, color=(0, 255, 0)):
     
     return frame
 
+def _yolo_device():
+    """Use GPU if available for faster inference."""
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return "cuda"
+    except Exception:
+        pass
+    return "cpu"
+
+
 def process_video_django(video_path, output_path=None, detection_model=None):
     """
     Process video file with Django integration for AI surveillance
@@ -232,6 +288,10 @@ def process_video_django(video_path, output_path=None, detection_model=None):
     
     detections = []
     frame_number = 0
+    device = _yolo_device()
+    predict_kw = {"imgsz": 416, "conf": 0.3, "iou": 0.45, "verbose": False, "device": device}
+    if device == "cuda":
+        predict_kw["half"] = True  # FP16 for faster GPU inference
     
     try:
         while cap.isOpened():
@@ -239,8 +299,8 @@ def process_video_django(video_path, output_path=None, detection_model=None):
             if not ret:
                 break
             
-            # Run YOLO detection on frame
-            results = detection_model(frame)
+            # Run YOLO detection on frame (smaller imgsz + device for speed)
+            results = detection_model.predict(frame, **predict_kw)
             
             # Process results
             frame_detections = []

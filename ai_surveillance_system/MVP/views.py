@@ -4,7 +4,7 @@ from django.shortcuts import render
 from django.shortcuts import render
 from pathlib import Path
 import base64 ,json , os ,sys,base64,cv2,numpy as np,uuid
-from MVP.models import DetectionLog, UserProfile
+from MVP.models import DetectionLog, UserProfile, VideoPath, RecordingPath
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login
@@ -32,6 +32,44 @@ from MVP.utils.utils import (
     draw_detection_box
 )
 from django.shortcuts import render
+
+# In-memory cache for active live recording writers: session_id -> {session_path, writer, start_time_str}
+_live_recording_sessions = {}
+
+# ----- YOLO inference speed settings -----
+YOLO_IMGSZ = 416   # Smaller = faster (320/416/480). 640 is default and slower.
+YOLO_CONF = 0.3
+YOLO_IOU = 0.45
+YOLO_FACE_IMGSZ = 224   # Face crop is small; keep inference light.
+
+def _get_yolo_device():
+    """Use GPU if available, else CPU. Speeds up inference significantly on CUDA."""
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return "cuda"
+    except Exception:
+        pass
+    return "cpu"
+
+def _yolo_predict_kwargs():
+    """Common predict options for main YOLO model (faster inference)."""
+    return {
+        "imgsz": YOLO_IMGSZ,
+        "conf": YOLO_CONF,
+        "iou": YOLO_IOU,
+        "verbose": False,
+        "device": _get_yolo_device(),
+    }
+
+def _yolo_face_predict_kwargs():
+    """Lighter options for face/pose model on person crops."""
+    return {
+        "imgsz": YOLO_FACE_IMGSZ,
+        "conf": 0.25,
+        "verbose": False,
+        "device": _get_yolo_device(),
+    }
 
 def analytics(request):
     return render(request, 'analytics.html')
@@ -181,18 +219,40 @@ def process_video_yolo(request):
         # Load YOLO model (shared instance, same as working test2_yolo)
         model = get_yolo_model()
         
-        # Process video with YOLO
-        detections = process_video_django(video_path, detection_model=model)
+        # Prepare an output path for annotated video (same folder + '_annotated.mp4')
+        base, ext = os.path.splitext(video_path)
+        output_path = f"{base}_annotated.mp4"
+
+        # Process video with YOLO and write annotated video to output_path
+        result = process_video_django(video_path, output_path=output_path, detection_model=model)
+
+        # result is a dict (see process_video_django)
+        if not result.get('success'):
+            return JsonResponse(result, status=400)
+
+        detections = result.get('detections', [])
         
         # Filter for people, vehicles, and other objects
         target_objects = ['person', 'car', 'truck', 'bus', 'motorcycle', 'bicycle', 'boat', 'airplane', 'train']
         filtered_detections = [d for d in detections if d.get('class_name') in target_objects]
+
+        # Save video path entry in admin for this processed video
+        if request.user.is_authenticated:
+            try:
+                VideoPath.objects.create(
+                    user=request.user,
+                    path=output_path,
+                    source_name=os.path.basename(video_path),
+                )
+            except Exception as e:
+                print(f"Warning: could not save VideoPath entry: {e}")
         
         return JsonResponse({
             'success': True,
             'detections': filtered_detections,
             'total_detections': len(filtered_detections),
-            'message': 'YOLO processing completed'
+            'message': 'YOLO processing completed',
+            'output_path': output_path,
         })
         
     except Exception as e:
@@ -206,7 +266,10 @@ def process_frame_yolo(request):
         data = json.loads(request.body)
         frame_data = data.get('frame_data')  # Base64 encoded frame
         session_id = data.get('session_id', '')
+        cam_id = data.get('cam_id', 'VIDEO')  # Default to 'VIDEO' for video uploads
+        detection_type = data.get('detection_type', 'video')  # 'video' or 'live'
         enable_gender = data.get('enable_gender', True)  # Enable gender detection by default
+        record = data.get('record', False)  # True when client is recording live video
         
         if not frame_data:
             return JsonResponse({'error': 'No frame data provided'}, status=400)
@@ -235,8 +298,11 @@ def process_frame_yolo(request):
         if frame is None:
             return JsonResponse({'error': 'Invalid image data'}, status=400)
         
-        # Run YOLO detection
-        results = model(frame)
+        # Run YOLO detection first (so we can draw boxes on the recording)
+        predict_kw = _yolo_predict_kwargs()
+        if _get_yolo_device() == "cuda":
+            predict_kw["half"] = True  # FP16 on GPU for faster inference
+        results = model.predict(frame, **predict_kw)
         
         detections = []
         for result in results:
@@ -263,7 +329,7 @@ def process_frame_yolo(request):
                                 person_crop = crop_from_box(frame, [x1, y1, x2, y2])
                                 if person_crop is not None:
                                     # Detect faces within person crop
-                                    face_results = face_model(person_crop, conf=0.25, verbose=False)
+                                    face_results = face_model.predict(person_crop, **_yolo_face_predict_kwargs())
                                     if face_results and len(face_results) > 0:
                                         face_res = face_results[0]
                                         if face_res.boxes is not None and len(face_res.boxes) > 0:
@@ -280,36 +346,174 @@ def process_frame_yolo(request):
                                             # Crop face region
                                             face_crop = crop_from_box(person_crop, [fx1, fy1, fx2, fy2])
                                             if face_crop is not None:
-                                                # Classify gender
-                                                x_in = preprocess_for_classifier(face_crop)
-                                                gender_score = float(keras_model.predict(x_in, verbose=0).flatten()[0])
-                                                pred_label = 1 if gender_score > keras_threshold else 0
-                                                gender_label = CLASS_MAP[pred_label]
-                                                
-                                                detection_data['gender'] = gender_label
-                                                detection_data['gender_score'] = float(gender_score)
-                                                detection_data['gender_confidence'] = float(gender_score) if pred_label == 1 else float(1 - gender_score)
+                                                try:
+                                                    # Classify gender
+                                                    x_in = preprocess_for_classifier(face_crop)
+                                                    gender_score = float(keras_model.predict(x_in, verbose=0).flatten()[0])
+                                                    pred_label = 1 if gender_score > keras_threshold else 0
+                                                    gender_label = CLASS_MAP[pred_label]
+                                                    
+                                                    detection_data['gender'] = gender_label
+                                                    detection_data['gender_score'] = float(gender_score)
+                                                    detection_data['gender_confidence'] = float(gender_score) if pred_label == 1 else float(1 - gender_score)
+                                                except Exception as e:
+                                                    print(f"Error in gender detection: {e}")
+                                                    # Continue without gender info
                             except Exception as e:
                                 print(f"Error in gender detection: {e}")
                                 # Continue without gender info
                         
                         detections.append(detection_data)
-                        
-                        # Log detection to database
-                        if request.user.is_authenticated:
-                            print(f"DEBUG: Saving detection for user {request.user.username}")
-                            DetectionLog.objects.create(
-                                user=request.user,
-                                object_class=class_name,
-                                confidence=float(confidence),
-                                bbox_x=int(x1),
-                                bbox_y=int(y1),
-                                bbox_width=int(x2-x1),
-                                bbox_height=int(y2-y1),
-                                session_id=session_id
-                            )
-                        else:
-                            print(f"DEBUG: User not authenticated, skipping database save")
+        
+        # BGR colors per class for bounding boxes on recorded video
+        _BOX_COLORS = {
+            'person': (0, 0, 255),       # Red
+            'car': (255, 0, 0),         # Blue
+            'truck': (255, 0, 255),     # Purple
+            'bus': (0, 165, 255),       # Orange
+            'motorcycle': (0, 255, 0),  # Green
+            'bicycle': (255, 255, 0),   # Cyan
+            'boat': (255, 0, 128),      # Indigo
+            'airplane': (255, 0, 255),  # Pink
+            'train': (0, 255, 128),    # Lime
+        }
+        
+        # ----- Live recording: save frame WITH bounding boxes to local video when record=True -----
+        if record and session_id and detection_type == 'live':
+            try:
+                h, w = frame.shape[0], frame.shape[1]
+                frame_size = (w, h)
+                fps = 10  # default for browser-sent frames
+                if session_id not in _live_recording_sessions:
+                    session_path, start_time_str = create_recording_session(cam_id or 'CAM')
+                    writer, video_path = create_video_writer(session_path, fps, frame_size)
+                    if writer is None or not writer.isOpened():
+                        print(f"ERROR: Failed to create video writer for session {session_id}")
+                        raise RuntimeError(f"VideoWriter not opened for {session_id}")
+                    _live_recording_sessions[session_id] = {
+                        'session_path': session_path,
+                        'writer': writer,
+                        'start_time_str': start_time_str,
+                        'video_path': video_path,
+                    }
+                    print(f"DEBUG: Created recording session {session_id} -> {video_path}")
+                rec = _live_recording_sessions[session_id]
+                if rec['writer'] is None or not rec['writer'].isOpened():
+                    print(f"ERROR: VideoWriter not opened for session {session_id}, recreating...")
+                    rec['writer'], rec['video_path'] = create_video_writer(rec['session_path'], fps, frame_size)
+                # Draw bounding boxes on frame before writing
+                frame_to_write = frame.copy()
+                for d in detections:
+                    x, y, bw, bh = d['bbox'][0], d['bbox'][1], d['bbox'][2], d['bbox'][3]
+                    label = d.get('class_name', 'object')
+                    conf = d.get('confidence', 0.0)
+                    color = _BOX_COLORS.get(label, (0, 255, 0))  # BGR default green
+                    draw_detection_box(frame_to_write, x, y, bw, bh, label, conf, color=color)
+                rec['writer'].write(frame_to_write)
+            except Exception as e:
+                import traceback
+                print(f"ERROR: Live recording write failed: {e}")
+                print(f"DEBUG: record={record}, session_id={session_id}, detection_type={detection_type}")
+                traceback.print_exc()
+        
+        # Finalize recording when client sends record=False with session_id
+        if not record and session_id and session_id in _live_recording_sessions:
+            try:
+                rec = _live_recording_sessions.pop(session_id)
+                if rec['writer'] is not None:
+                    rec['writer'].release()
+                old_video_path = rec.get('video_path', '')
+                final_path, _ = finalize_session(rec['session_path'], rec['start_time_str'])
+                # Path to finalized recording file
+                new_recording_path = os.path.join(final_path, 'video.mp4')
+                
+                # Verify file exists
+                if not os.path.exists(new_recording_path):
+                    print(f"WARNING: Recording file not found at {new_recording_path}, checking original path...")
+                    if old_video_path and os.path.exists(old_video_path):
+                        new_recording_path = old_video_path
+                        print(f"DEBUG: Using original video path: {old_video_path}")
+                    else:
+                        print(f"ERROR: Recording file does not exist at either location!")
+                
+                if old_video_path:
+                    # Update DetectionLog rows so admin shows final recording path
+                    DetectionLog.objects.filter(recording_path=old_video_path).update(recording_path=new_recording_path)
+                # Create a RecordingPath row for the admin "recording path" table
+                try:
+                    RecordingPath.objects.create(
+                        user=request.user,
+                        camera=None,  # Could be resolved from cam_id if you wire it up
+                        session_id=session_id,
+                        path=new_recording_path,
+                    )
+                    print(f"DEBUG: RecordingPath created for session_id={session_id}")
+                except Exception as e:
+                    print(f"Warning: could not save RecordingPath entry: {e}")
+                print(f"DEBUG: Live recording saved for session_id={session_id} -> {new_recording_path} (exists: {os.path.exists(new_recording_path)})")
+            except Exception as e:
+                import traceback
+                print(f"ERROR: Live recording finalize failed: {e}")
+                traceback.print_exc()
+        
+        # Save all detections to database with new fields
+        # detected_items will contain all items detected in this frame
+        if request.user.is_authenticated and len(detections) > 0:
+            try:
+                # Prepare detected_items JSON with all detections from this frame
+                detected_items_json = []
+                for det in detections:
+                    item_data = {
+                        'class_name': det.get('class_name', ''),
+                        'confidence': det.get('confidence', 0.0),
+                        'bbox': det.get('bbox', [])
+                    }
+                    if 'gender' in det:
+                        item_data['gender'] = det['gender']
+                        item_data['gender_confidence'] = det.get('gender_confidence', 0.0)
+                    detected_items_json.append(item_data)
+                
+                # Resolve video_path and recording_path so admin always has data
+                save_video_path = ''
+                save_recording_path = ''
+                if (detection_type or 'live') == 'video':
+                    # Uploaded video: store filename or identifier so admin shows something
+                    save_video_path = cam_id or session_id or 'video_upload'
+                else:
+                    # Live: store actual recording path when recording, else placeholder
+                    if session_id and session_id in _live_recording_sessions:
+                        save_recording_path = _live_recording_sessions[session_id].get('video_path', '')
+                    if not save_recording_path and (cam_id or session_id):
+                        save_recording_path = f"live/{cam_id or 'cam'}/{session_id or 'session'}"
+                
+                # Save each detection individually with all frame detections in detected_items
+                for detection_data in detections:
+                    try:
+                        DetectionLog.objects.create(
+                            user=request.user,
+                            object_class=detection_data.get('class_name', ''),
+                            confidence=detection_data.get('confidence', 0.0),
+                            bbox_x=int(detection_data['bbox'][0]),
+                            bbox_y=int(detection_data['bbox'][1]),
+                            bbox_width=int(detection_data['bbox'][2]),
+                            bbox_height=int(detection_data['bbox'][3]),
+                            session_id=session_id or '',
+                            cam_id=cam_id or '',
+                            detection_type=detection_type or 'live',
+                            detected_items=detected_items_json,
+                            video_path=save_video_path,
+                            recording_path=save_recording_path
+                        )
+                        print(f"DEBUG: Successfully saved detection: {detection_data.get('class_name')} for user {request.user.username}, cam_id={cam_id}, type={detection_type}")
+                    except Exception as db_error:
+                        import traceback
+                        print(f"ERROR: Failed to save detection to database: {db_error}")
+                        traceback.print_exc()
+                        # Continue processing other detections even if one fails
+            except Exception as e:
+                import traceback
+                print(f"ERROR: Exception while preparing detections for database: {e}")
+                traceback.print_exc()
         
         return JsonResponse({
             'success': True,
@@ -362,8 +566,11 @@ def upload_and_detect(request):
         yolo_model = get_yolo_model()
         keras_model, best_threshold = get_gender_model()
 
-        # Run YOLO detection
-        results = yolo_model.predict(source=abs_path, imgsz=640, conf=0.25, iou=0.45)
+        # Run YOLO detection (smaller imgsz + device for speed)
+        predict_kw = _yolo_predict_kwargs()
+        if _get_yolo_device() == "cuda":
+            predict_kw["half"] = True
+        results = yolo_model.predict(source=abs_path, **predict_kw)
         res = results[0]
 
         detections = []
@@ -416,20 +623,20 @@ def get_detection_report(request):
         start_date = request.GET.get('start_date', '')
         end_date = request.GET.get('end_date', '')
         
-        # Calculate time range
-        end_time = timezone.now()
+        # Use local time for accurate hourly distribution (matches user's clock)
+        end_time = timezone.localtime(timezone.now())
         start_time = end_time - timedelta(hours=hours)
         
         # Override time range if custom dates provided
         if start_date:
             try:
-                start_time = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                start_time = timezone.localtime(datetime.fromisoformat(start_date.replace('Z', '+00:00')))
             except ValueError:
                 pass  # Use default start_time
         
         if end_date:
             try:
-                end_time = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                end_time = timezone.localtime(datetime.fromisoformat(end_date.replace('Z', '+00:00')))
             except ValueError:
                 pass  # Use default end_time
         
@@ -467,7 +674,7 @@ def get_detection_report(request):
             avg_confidence=Avg('confidence')
         ).order_by('-count')
         
-        # Get hourly distribution (oldest first)
+        # Get hourly distribution (oldest first) in local time for accurate labels
         hourly_stats = []
         for i in range(hours-1, -1, -1):  # Reverse the loop to get oldest first
             hour_start = end_time - timedelta(hours=i+1)
@@ -476,8 +683,13 @@ def get_detection_report(request):
                 timestamp__gte=hour_start,
                 timestamp__lt=hour_end
             ).count()
+            # Label: show date when range spans multiple days so each hour is unambiguous
+            if hours >= 24:
+                hour_label = hour_start.strftime('%d %b %H:00')  # e.g. "08 Feb 14:00"
+            else:
+                hour_label = hour_start.strftime('%H:00')
             hourly_stats.append({
-                'hour': hour_start.strftime('%H:00'),
+                'hour': hour_label,
                 'count': hour_count
             })
         
@@ -576,7 +788,7 @@ def debug_login(request):
     return render(request, 'login.html')
 
 def yolo_camera_stream(camera_index=0):
-    model = YOLO("yolov8n.pt")
+    model = get_yolo_model()  # Reuse cached model instead of loading every time
     cap = cv2.VideoCapture(camera_index)
 
     if not cap.isOpened():
@@ -591,13 +803,17 @@ def yolo_camera_stream(camera_index=0):
     writer, video_path = create_video_writer(session_path, fps, (width, height))
     detections_buffer = []
 
+    predict_kw = _yolo_predict_kwargs()
+    if _get_yolo_device() == "cuda":
+        predict_kw["half"] = True
+
     try:
         while True:
             ret, frame = cap.read()
             if not ret:
                 break
 
-            results = model(frame)
+            results = model.predict(frame, **predict_kw)
 
             for result in results:
                 for box in result.boxes:
